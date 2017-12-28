@@ -55,7 +55,7 @@ public class DistributedObjects {
                     return Futures.completedFuture(new StoreSearchRep(ref));
                 });
                 c.handler(StoreMakeCartReq.class, (m) -> {
-                    StoreImpl x = (StoreImpl) objs.get(m.id);
+                    Store x = (Store) objs.get(m.id);
                     Cart cart = x.newCart();
                     int idCart = id.incrementAndGet();
                     objs.put(idCart, cart);
@@ -75,10 +75,14 @@ public class DistributedObjects {
                 });
                 c.handler(BookInfoReq.class, (m) -> {
                     Book book = (Book) objs.get(m.bookid);
-                    int isbn = book.getIsbn();
-                    String title = book.getTitle();
-                    String author = book.getAuthor();
-                    BookInfoRep rep = new BookInfoRep(isbn, title, author);
+                    BookInfoRep rep = null;
+                    if(m.infoReq == 0) {
+                        rep = new BookInfoRep(book.getIsbn());
+                    }else if(m.infoReq == 1){
+                        rep = new BookInfoRep(book.getTitle());
+                    }else if(m.infoReq == 2){
+                        rep = new BookInfoRep(book.getAuthor());
+                    }
                     return Futures.completedFuture(rep);
                 });
             });
@@ -104,6 +108,5 @@ public class DistributedObjects {
         if(o.cls.equals("store"))
             return new RemoteStore(tc, t, address);
         return null;
-
     }
 }

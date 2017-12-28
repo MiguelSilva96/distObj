@@ -6,7 +6,7 @@ import io.atomix.catalyst.serializer.CatalystSerializable;
 import io.atomix.catalyst.serializer.Serializer;
 
 public class CartBuyRep implements CatalystSerializable {
-    boolean result;
+    public boolean result;
 
     public CartBuyRep() { }
     public CartBuyRep(boolean result) {

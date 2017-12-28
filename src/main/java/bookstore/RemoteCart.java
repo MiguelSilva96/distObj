@@ -1,5 +1,7 @@
 package bookstore;
 
+import bookstore.requests.CartBuyRep;
+import bookstore.requests.CartBuyReq;
 import io.atomix.catalyst.concurrent.SingleThreadContext;
 import io.atomix.catalyst.transport.Address;
 import io.atomix.catalyst.transport.Connection;
@@ -32,7 +34,15 @@ public class RemoteCart implements Cart {
     }
 
     public boolean buy() {
-        return true;
+        CartBuyRep r = null;
+        try{
+            r = (CartBuyRep) tc.execute(()->
+                    c.sendAndReceive(new CartBuyReq(id))
+            ).join().get();
+        }catch (InterruptedException|ExecutionException e){
+            e.printStackTrace();
+        }
+        return r.result;
     }
 
     public void add(Book b) {

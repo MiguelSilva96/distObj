@@ -36,12 +36,29 @@ public class RemoteBook implements Book {
 
 	@Override
 	public int getIsbn() {
-		return 0;
+        BookInfoRep rep = null;
+        try {
+            rep = (BookInfoRep) tc.execute(() ->
+                    c.sendAndReceive(new BookInfoReq(1, id, 0))
+            ).join().get();
+        } catch (InterruptedException|ExecutionException e) {
+            e.printStackTrace();
+        }
+
+		return rep.isbn;
 	}
 
 	@Override
 	public String getTitle() {
-		return null;
+        BookInfoRep rep = null;
+        try {
+            rep = (BookInfoRep) tc.execute(() ->
+                    c.sendAndReceive(new BookInfoReq(1, id, 1))
+            ).join().get();
+        } catch (InterruptedException|ExecutionException e) {
+            e.printStackTrace();
+        }
+        return rep.titAuth;
 	}
 
 	@Override
@@ -49,12 +66,11 @@ public class RemoteBook implements Book {
         BookInfoRep rep = null;
         try {
             rep = (BookInfoRep) tc.execute(() ->
-                    c.sendAndReceive(new BookInfoReq(1, id))
-                  ).join().get();
+                    c.sendAndReceive(new BookInfoReq(1, id, 2))
+            ).join().get();
         } catch (InterruptedException|ExecutionException e) {
             e.printStackTrace();
         }
-        if(rep == null) return null;
-        return rep.author;
+        return rep.titAuth;
     }
 }
