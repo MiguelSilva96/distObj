@@ -38,7 +38,7 @@ public class Simulation {
             Log l = new Log("log" + id);
 
             if(id != 2) {
-                // log handlers for coordinators
+                // log handlers for participants
                 l.handler(Prepare.class, (i, p) -> {
                     // what to do to recover stuff
                     // how to check if it has voted
