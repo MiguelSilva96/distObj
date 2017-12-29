@@ -3,6 +3,7 @@ package bookstore;
 
 import bookstore.requests.BookInfoRep;
 import bookstore.requests.BookInfoReq;
+import bookstore.requests.GetsBookAndInfoReq;
 import io.atomix.catalyst.concurrent.SingleThreadContext;
 import io.atomix.catalyst.transport.Address;
 import io.atomix.catalyst.transport.Connection;
@@ -17,11 +18,15 @@ public class RemoteBook implements Book {
 	private final Address address;
 	private final Connection c;
 	public int id;
+	private int storeId;
+	private long timeout;
+	private long timeCreate;
+    private String bookTitle;
 
-	public RemoteBook(SingleThreadContext tc, Address address, int id) {
+	public RemoteBook(SingleThreadContext tc, Address addr, int id, long tC, int idS, String title) {
 		this.tc = tc;
 		this.id = id;
-		this.address = address;
+		this.address = addr;
         Transport t = new NettyTransport();
         Connection connection = null;
         try {
@@ -32,17 +37,31 @@ public class RemoteBook implements Book {
             e.printStackTrace();
         }
         c = connection;
+        this.timeout = 100000;
+        this.timeCreate = tC;
+        this.storeId = idS;
+        this.bookTitle = title;
 	}
 
 	@Override
 	public int getIsbn() {
         BookInfoRep rep = null;
-        try {
-            rep = (BookInfoRep) tc.execute(() ->
-                    c.sendAndReceive(new BookInfoReq(1, id, 0))
-            ).join().get();
-        } catch (InterruptedException|ExecutionException e) {
-            e.printStackTrace();
+        if(System.currentTimeMillis() - timeCreate >= timeout){
+            try{
+                rep = (BookInfoRep) tc.execute(() ->
+                    c.sendAndReceive(new GetsBookAndInfoReq(storeId, bookTitle, 0))
+                ).join().get();
+            }catch (InterruptedException|ExecutionException e){
+                e.printStackTrace();
+            }
+        }else {
+            try {
+                rep = (BookInfoRep) tc.execute(() ->
+                        c.sendAndReceive(new BookInfoReq(1, id, 0))
+                ).join().get();
+            } catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
+            }
         }
 
 		return rep.isbn;
@@ -51,12 +70,22 @@ public class RemoteBook implements Book {
 	@Override
 	public String getTitle() {
         BookInfoRep rep = null;
-        try {
-            rep = (BookInfoRep) tc.execute(() ->
-                    c.sendAndReceive(new BookInfoReq(1, id, 1))
-            ).join().get();
-        } catch (InterruptedException|ExecutionException e) {
-            e.printStackTrace();
+        if(System.currentTimeMillis() - timeCreate >= timeout){
+            try{
+                rep = (BookInfoRep) tc.execute(() ->
+                        c.sendAndReceive(new GetsBookAndInfoReq(storeId, bookTitle, 1))
+                ).join().get();
+            }catch (InterruptedException|ExecutionException e){
+                e.printStackTrace();
+            }
+        }else {
+            try {
+                rep = (BookInfoRep) tc.execute(() ->
+                        c.sendAndReceive(new BookInfoReq(1, id, 1))
+                ).join().get();
+            } catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
+            }
         }
         return rep.titAuth;
 	}
@@ -64,12 +93,22 @@ public class RemoteBook implements Book {
 	@Override
 	public String getAuthor() {
         BookInfoRep rep = null;
-        try {
-            rep = (BookInfoRep) tc.execute(() ->
-                    c.sendAndReceive(new BookInfoReq(1, id, 2))
-            ).join().get();
-        } catch (InterruptedException|ExecutionException e) {
-            e.printStackTrace();
+        if(System.currentTimeMillis() - timeCreate >= timeout){
+            try{
+                rep = (BookInfoRep) tc.execute(() ->
+                        c.sendAndReceive(new GetsBookAndInfoReq(storeId, bookTitle, 2))
+                ).join().get();
+            }catch (InterruptedException|ExecutionException e){
+                e.printStackTrace();
+            }
+        }else {
+            try {
+                rep = (BookInfoRep) tc.execute(() ->
+                        c.sendAndReceive(new BookInfoReq(1, id, 2))
+                ).join().get();
+            } catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
+            }
         }
         return rep.titAuth;
     }

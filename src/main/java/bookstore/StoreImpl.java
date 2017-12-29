@@ -37,17 +37,22 @@ public class StoreImpl implements Store {
 
         public boolean buy() {
             int nOk = 0;
+            Map<Integer, Stock> temp = books;
             for(Book b : content){
                 for(Stock s: books.values()){
                     if(s.book.equals(b) && s.nBooks > 0){
                         nOk++;
+                        s.nBooks--;
                         break;
                     }
                 }
             }
             if(nOk == content.size())
                 return true;
-            else return false;
+            else{
+                books = temp;
+                return false;
+            }
         }
     }
 }

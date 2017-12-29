@@ -31,7 +31,7 @@ public class RemoteStore implements Store {
             e.printStackTrace();
         }
         c = connection;
-        id = 1; //to be solved
+        id = 1; //TODO
     }
 
     public Book get(int isbn) {
@@ -48,7 +48,7 @@ public class RemoteStore implements Store {
         } catch (InterruptedException|ExecutionException e) {
             e.printStackTrace();
         }
-        return (Book) Util.makeRemote(tc, r.ref);
+        return (Book) Util.makeRemote(tc, r.ref, id, title);
     }
 
     public Cart newCart() {
@@ -61,7 +61,7 @@ public class RemoteStore implements Store {
             e.printStackTrace();
         }
         if(r == null) return null;
-        return (Cart) Util.makeRemote(tc, r.ref);
+        return (Cart) Util.makeRemote(tc, r.ref, id, null);
     }
 
 }
