@@ -40,6 +40,14 @@ public class DistributedObjects {
         tc.serializer().register(StoreMakeCartRep.class);
         tc.serializer().register(BookInfoReq.class);
         tc.serializer().register(BookInfoRep.class);
+
+        tc.serializer().register(BankSearchReq.class);
+        tc.serializer().register(BankSearchRep.class);
+        tc.serializer().register(AccountInfoReq.class);
+        tc.serializer().register(AccountInfoRep.class);
+        tc.serializer().register(BankTxnReq.class);
+        tc.serializer().register(BankTxnRep.class);
+
         tc.serializer().register(ObjRef.class);
     }
 
@@ -81,6 +89,27 @@ public class DistributedObjects {
                     BookInfoRep rep = new BookInfoRep(isbn, title, author);
                     return Futures.completedFuture(rep);
                 });
+
+                c.handler(BankSearchReq.class, (m) -> {
+                    Bank x = (Bank) objs.get(m.id);
+                    Account a = x.search(m.iban);
+                    int id_account = id.incrementAndGet();
+                    objs.put(id_account, a);
+                    ObjRef ref = new ObjRef(address, id_account, "account");
+                    return Futures.completedFuture(new BankSearchRep(ref));
+                });
+                c.handler(AccountInfoReq.class, (m) -> {
+                    Account a = (Account) objs.get(m.accountid);
+                    String iban = a.getIban();
+                    String titular = a.getTitular();
+                    float price = a.getBalance();
+                    return Futures.completedFuture(new AccountInfoRep(iban, titular, price));
+                });
+                c.handler(BankTxnReq.class, (m) -> {
+                    Account a = (Account) objs.get(m.id);
+                    boolean res = a.buy(m.price);
+                    return Futures.completedFuture(new BankTxnRep(res));
+                });
             });
         });
     }
@@ -96,6 +125,11 @@ public class DistributedObjects {
         else if(o instanceof Cart)
             return new ObjRef(address, id.get(), "cart");
 
+        else if(o instanceof Bank)
+            return new ObjRef(address, id.get(), "bank");
+        else if(o instanceof Account)
+            return new ObjRef(address, id.get(), "account");
+
         return null;
     }
 
@@ -103,6 +137,9 @@ public class DistributedObjects {
 
         if(o.cls.equals("store"))
             return new RemoteStore(tc, t, address);
+
+        if(o.cls.equals("bank"))
+            return new RemoteBank(tc, t, address);
         return null;
 
     }
