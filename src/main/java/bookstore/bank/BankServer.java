@@ -1,4 +1,6 @@
-package bookstore;
+package bookstore.bank;
+
+import bookstore.DistributedObjects;
 
 import java.util.LinkedList;
 import java.util.Queue;
@@ -10,14 +12,15 @@ public class BankServer {
 
         Thread add = new BankQueueAdd(qq);
         Thread rm = new BankQueueRm(qq);
-        qq.add(new Txn("PT12345", 2));
+
         add.start();
         rm.start();
 
+
         DistributedObjects distObj = new DistributedObjects();
-        distObj.initialize_bank();
         Bank bank = new Bank();
         distObj.exportObj(bank);
+        distObj.bank_requests();
     }
 
     private static class BankQueueAdd extends Thread {

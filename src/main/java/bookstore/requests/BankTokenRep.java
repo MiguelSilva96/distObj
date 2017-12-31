@@ -5,14 +5,14 @@ import io.atomix.catalyst.buffer.BufferOutput;
 import io.atomix.catalyst.serializer.CatalystSerializable;
 import io.atomix.catalyst.serializer.Serializer;
 
-public class RmTxnRep implements CatalystSerializable {
+public class BankTokenRep implements CatalystSerializable {
 
     public int bankid;
     public String iban;
     public float price;
 
-    public RmTxnRep() {}
-    public RmTxnRep(int bankid, String iban, float price) {
+    public BankTokenRep() {}
+    public BankTokenRep(int bankid, String iban, float price) {
         this.bankid = bankid;
         this.iban = iban;
         this.price = price;

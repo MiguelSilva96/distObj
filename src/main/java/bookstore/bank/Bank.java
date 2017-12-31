@@ -1,4 +1,4 @@
-package bookstore;
+package bookstore.bank;
 
 import java.util.HashMap;
 import java.util.Map;

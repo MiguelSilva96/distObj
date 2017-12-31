@@ -1,19 +1,21 @@
 package bookstore;
 
+import bookstore.bank.*;
+import bookstore.requests.*;
+
 import io.atomix.catalyst.concurrent.Futures;
 import io.atomix.catalyst.concurrent.SingleThreadContext;
 import io.atomix.catalyst.serializer.Serializer;
 import io.atomix.catalyst.transport.Address;
-import io.atomix.catalyst.transport.Connection;
 import io.atomix.catalyst.transport.Transport;
 import io.atomix.catalyst.transport.netty.NettyTransport;
-import bookstore.requests.*;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import static java.lang.Thread.sleep;
 
 public class DistributedObjects {
 
@@ -28,7 +30,7 @@ public class DistributedObjects {
         id = new AtomicInteger(0);
         tc = new SingleThreadContext("srv-%d", new Serializer());
         t  = new NettyTransport();
-        address = new Address("localhost:11111");
+        address = new Address("localhost:10000");
         register();
     }
 
@@ -45,9 +47,10 @@ public class DistributedObjects {
         tc.serializer().register(BookInfoRep.class);
 
         tc.serializer().register(AddTxnReq.class);
+        tc.serializer().register(TokenReq.class);
         tc.serializer().register(AddTxnRep.class);
-        tc.serializer().register(RmTxnReq.class);
-        tc.serializer().register(RmTxnRep.class);
+        tc.serializer().register(TxnReq.class);
+        tc.serializer().register(TxnRep.class);
 
         tc.serializer().register(ObjRef.class);
     }
@@ -94,54 +97,19 @@ public class DistributedObjects {
         });
     }
 
-
-    public void send_req() {
-        try {
-            Connection c = tc.execute(() ->
-                    t.client().connect(address)
-            ).join().get();
-
-            tc.execute(() ->
-                    c.send(new RmTxnReq())
-            ).join().get();
-
-            System.out.println("sou o banco e quero cenas");
-
-        } catch(InterruptedException|ExecutionException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public void initialize_bank() {
-        send_req();
+    public void bank_requests() {
         tc.execute(() -> {
-            t.server().listen(new Address(":10000"), (c) -> {
-                c.handler(RmTxnRep.class, (m) -> {
-                    System.out.println("sou o banco e recebi um txn");
+            t.server().listen(new Address(":10002"), (c) -> {
+                c.handler(TxnReq.class, (m) -> {
+                    System.out.println("4. sou o banco e recebi cenas");
+
+                    System.out.println(m.bankid +","+ m.iban +","+ m.price);
                     Bank x = (Bank) objs.get(m.bankid);
                     Account a = x.search(m.iban);
                     boolean res = a.buy(m.price);
-                    send_req();
-                    return Futures.completedFuture(new AddTxnRep(res));
-                });
-            });
-        });
-    }
 
-    //comunica com a loja
-    public void listen_add(Queue<Txn> qq) {
-        tc.execute(() -> {
-            t.server().listen(new Address(":10000"), (c) -> {
-
-                //receber thx da loja
-                c.handler(AddTxnReq.class, (m) -> {
-                    System.out.println("recebi uma ordem da loja");
-                    qq.add(new Txn(m.iban, m.price));
-                });
-                //enviar thx para loja
-                c.handler(AddTxnRep.class, (m) -> {
-                    System.out.println("recebi uma resposta do banco");
-                    return Futures.completedFuture(m);
+                    System.out.println("5. sou o banco e tenho a resposta");
+                    return Futures.completedFuture(new TxnRep(res));
                 });
             });
         });
@@ -149,15 +117,54 @@ public class DistributedObjects {
 
     //comunica com o banco
     public void listen_rm(Queue<Txn> qq) {
+        address = new Address("localhost", 10002);
         tc.execute(() -> {
-            t.server().listen(new Address(":10000"), (c) -> {
-                c.handler(RmTxnReq.class, (m) -> {
-                    System.out.println("o banco quer cenas");
+            t.server().listen(new Address(":10001"), (c) -> {
+                c.handler(TokenReq.class, (m) -> {
+                    RemoteBank rb = new RemoteBank(tc, t, address);
+
+                    System.out.println("2. recebi sinal da queue");
                     Txn x = qq.remove();
-                    return Futures.completedFuture(new RmTxnRep(1, x.iban, x.price));
+
+                    //envia para o banco
+                    System.out.println("3. enviei cenas para o banco");
+                    boolean res = rb.send_receive(1, x.iban, x.price);
+
+                    //envia para a queue
+                    System.out.println("6. enviei resposta do banco");
+                    rb.send(res);
                 });
             });
         });
+    }
+
+    //comunica com a loja
+    public void listen_add(Queue<Txn> qq) {
+        address = new Address("localhost", 10001);
+        RemoteBank rb = new RemoteBank(tc, t, address);
+/*
+        tc.execute(() -> {
+            t.server().listen(new Address(":10000"), (c) -> {
+
+                //receber tnx da loja
+                c.handler(AddTxnReq.class, (m) -> {
+                    System.out.println("1. recebi uma ordem da loja");
+                    qq.add(new Txn(m.iban, m.price));
+                    rb.send(m.iban, m.price);
+                });
+
+                //enviar tnx para loja
+                c.handler(AddTxnRep.class, (m) -> {
+                    System.out.println("7. recebi a resposta final");
+                    //return Futures.completedFuture(m);
+                });
+            });
+        });
+*/
+
+        System.out.println("1. sou a loja e enviei cenas");
+        qq.add(new Txn("PT12345", 2));
+        rb.send();
     }
 
     public ObjRef exportObj(Object o){
@@ -183,6 +190,5 @@ public class DistributedObjects {
             return new RemoteStore(tc, t, address);
 
         return null;
-
     }
 }
