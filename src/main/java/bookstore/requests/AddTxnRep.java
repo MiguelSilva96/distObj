@@ -5,11 +5,11 @@ import io.atomix.catalyst.buffer.BufferOutput;
 import io.atomix.catalyst.serializer.CatalystSerializable;
 import io.atomix.catalyst.serializer.Serializer;
 
-public class BankTxnRep implements CatalystSerializable {
-    boolean result;
+public class AddTxnRep implements CatalystSerializable {
+    public boolean result;
 
-    public BankTxnRep() { }
-    public BankTxnRep(boolean result) {
+    public AddTxnRep() { }
+    public AddTxnRep(boolean result) {
         this.result = result;
     }
 

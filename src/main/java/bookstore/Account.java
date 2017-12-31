@@ -1,9 +1,41 @@
 package bookstore;
 
-public interface Account {
+import java.util.ArrayList;
+import java.util.List;
 
-    public String getIban();
-    public String getTitular();
-    public float getBalance();
-    public boolean buy(float price);
+public class Account {
+
+    private String iban;
+    private String titular;
+    private float balance;
+    private List<Txn> transactions;
+
+
+    public Account(String iban, String titular, float balance) {
+        this.iban = iban;
+        this.titular = titular;
+        this.balance = balance;
+        this.transactions = new ArrayList<>();
+    }
+
+    public String getIban() {
+        return iban;
+    }
+
+    public String getTitular() {
+        return titular;
+    }
+
+    public float getBalance() {
+        return balance;
+    }
+
+    public boolean buy(float price) {
+        if (balance >= price) {
+            balance -= price;
+            transactions.add(new Txn(price));
+            return true;
+        }
+        return false;
+    }
 }

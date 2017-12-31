@@ -4,12 +4,15 @@ import io.atomix.catalyst.concurrent.Futures;
 import io.atomix.catalyst.concurrent.SingleThreadContext;
 import io.atomix.catalyst.serializer.Serializer;
 import io.atomix.catalyst.transport.Address;
+import io.atomix.catalyst.transport.Connection;
 import io.atomix.catalyst.transport.Transport;
 import io.atomix.catalyst.transport.netty.NettyTransport;
 import bookstore.requests.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class DistributedObjects {
@@ -25,7 +28,7 @@ public class DistributedObjects {
         id = new AtomicInteger(0);
         tc = new SingleThreadContext("srv-%d", new Serializer());
         t  = new NettyTransport();
-        address = new Address("localhost:10000");
+        address = new Address("localhost:11111");
         register();
     }
 
@@ -41,12 +44,10 @@ public class DistributedObjects {
         tc.serializer().register(BookInfoReq.class);
         tc.serializer().register(BookInfoRep.class);
 
-        tc.serializer().register(BankSearchReq.class);
-        tc.serializer().register(BankSearchRep.class);
-        tc.serializer().register(AccountInfoReq.class);
-        tc.serializer().register(AccountInfoRep.class);
-        tc.serializer().register(BankTxnReq.class);
-        tc.serializer().register(BankTxnRep.class);
+        tc.serializer().register(AddTxnReq.class);
+        tc.serializer().register(AddTxnRep.class);
+        tc.serializer().register(RmTxnReq.class);
+        tc.serializer().register(RmTxnRep.class);
 
         tc.serializer().register(ObjRef.class);
     }
@@ -89,26 +90,71 @@ public class DistributedObjects {
                     BookInfoRep rep = new BookInfoRep(isbn, title, author);
                     return Futures.completedFuture(rep);
                 });
+            });
+        });
+    }
 
-                c.handler(BankSearchReq.class, (m) -> {
-                    Bank x = (Bank) objs.get(m.id);
+
+    public void send_req() {
+        try {
+            Connection c = tc.execute(() ->
+                    t.client().connect(address)
+            ).join().get();
+
+            tc.execute(() ->
+                    c.send(new RmTxnReq())
+            ).join().get();
+
+            System.out.println("sou o banco e quero cenas");
+
+        } catch(InterruptedException|ExecutionException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void initialize_bank() {
+        send_req();
+        tc.execute(() -> {
+            t.server().listen(new Address(":10000"), (c) -> {
+                c.handler(RmTxnRep.class, (m) -> {
+                    System.out.println("sou o banco e recebi um txn");
+                    Bank x = (Bank) objs.get(m.bankid);
                     Account a = x.search(m.iban);
-                    int id_account = id.incrementAndGet();
-                    objs.put(id_account, a);
-                    ObjRef ref = new ObjRef(address, id_account, "account");
-                    return Futures.completedFuture(new BankSearchRep(ref));
-                });
-                c.handler(AccountInfoReq.class, (m) -> {
-                    Account a = (Account) objs.get(m.accountid);
-                    String iban = a.getIban();
-                    String titular = a.getTitular();
-                    float price = a.getBalance();
-                    return Futures.completedFuture(new AccountInfoRep(iban, titular, price));
-                });
-                c.handler(BankTxnReq.class, (m) -> {
-                    Account a = (Account) objs.get(m.id);
                     boolean res = a.buy(m.price);
-                    return Futures.completedFuture(new BankTxnRep(res));
+                    send_req();
+                    return Futures.completedFuture(new AddTxnRep(res));
+                });
+            });
+        });
+    }
+
+    //comunica com a loja
+    public void listen_add(Queue<Txn> qq) {
+        tc.execute(() -> {
+            t.server().listen(new Address(":10000"), (c) -> {
+
+                //receber thx da loja
+                c.handler(AddTxnReq.class, (m) -> {
+                    System.out.println("recebi uma ordem da loja");
+                    qq.add(new Txn(m.iban, m.price));
+                });
+                //enviar thx para loja
+                c.handler(AddTxnRep.class, (m) -> {
+                    System.out.println("recebi uma resposta do banco");
+                    return Futures.completedFuture(m);
+                });
+            });
+        });
+    }
+
+    //comunica com o banco
+    public void listen_rm(Queue<Txn> qq) {
+        tc.execute(() -> {
+            t.server().listen(new Address(":10000"), (c) -> {
+                c.handler(RmTxnReq.class, (m) -> {
+                    System.out.println("o banco quer cenas");
+                    Txn x = qq.remove();
+                    return Futures.completedFuture(new RmTxnRep(1, x.iban, x.price));
                 });
             });
         });
@@ -127,8 +173,6 @@ public class DistributedObjects {
 
         else if(o instanceof Bank)
             return new ObjRef(address, id.get(), "bank");
-        else if(o instanceof Account)
-            return new ObjRef(address, id.get(), "account");
 
         return null;
     }
@@ -138,8 +182,6 @@ public class DistributedObjects {
         if(o.cls.equals("store"))
             return new RemoteStore(tc, t, address);
 
-        if(o.cls.equals("bank"))
-            return new RemoteBank(tc, t, address);
         return null;
 
     }
