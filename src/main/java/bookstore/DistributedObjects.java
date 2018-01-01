@@ -45,6 +45,7 @@ public class DistributedObjects {
         tc.serializer().register(BookInfoReq.class);
         tc.serializer().register(BookInfoRep.class);
         tc.serializer().register(ObjRef.class);
+        tc.serializer().register(GetsBookAndInfoReq.class);
     }
 
     public void initialize() {
