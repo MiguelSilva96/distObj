@@ -6,9 +6,7 @@ import io.atomix.catalyst.transport.Address;
 import io.atomix.catalyst.transport.Transport;
 import io.atomix.catalyst.transport.netty.NettyTransport;
 import pt.haslab.ekit.Clique;
-import pt.haslab.ekit.Log;
-
-import java.util.concurrent.atomic.AtomicInteger;
+import requests.*;
 
 public class Simulation {
     private static int prepared = 0;
@@ -31,6 +29,9 @@ public class Simulation {
         tc.serializer().register(Prepare.class);
         tc.serializer().register(Commit.class);
         tc.serializer().register(Rollback.class);
+        tc.serializer().register(Begin.class);
+        tc.serializer().register(StartCommit.class);
+
 
         Clique c = new Clique(t, id, addresses);
         if(id == 2) {

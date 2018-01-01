@@ -1,7 +1,9 @@
-import io.atomix.catalyst.concurrent.SingleThreadContext;
 import io.atomix.catalyst.concurrent.ThreadContext;
 import pt.haslab.ekit.Clique;
 import pt.haslab.ekit.Log;
+import requests.Commit;
+import requests.Prepare;
+import requests.Rollback;
 
 public class Participant {
     private Log log;
