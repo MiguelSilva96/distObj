@@ -1,5 +1,7 @@
 package bookstore;
 
+import bank.Txn;
+import bank.requests.TxnReq;
 import io.atomix.catalyst.concurrent.SingleThreadContext;
 import io.atomix.catalyst.transport.Address;
 import io.atomix.catalyst.transport.Connection;
@@ -9,6 +11,8 @@ import bookstore.requests.CartAddRep;
 import bookstore.requests.CartAddReq;
 
 import java.util.concurrent.ExecutionException;
+
+import static bank.Queues.send_req;
 
 public class RemoteCart implements Cart {
     private final SingleThreadContext tc;
@@ -32,7 +36,11 @@ public class RemoteCart implements Cart {
     }
 
     public boolean buy() {
-        return true;
+        Txn x = new Txn(1, "PT12345", 1);
+        Address adr = new Address("localhost", 10001);
+        System.out.println("buy req sent");
+        send_req(new NettyTransport(), adr, x);
+        return false;
     }
 
     public void add(Book b) {

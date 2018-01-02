@@ -18,6 +18,7 @@ public class Client {
         store = (Store) distObj.importObj(new ObjRef(addr, 1, "store"));
         Cart cart = store.newCart();
         Book book = store.search("one");
+        cart.buy();
         System.out.println(book.getAuthor());
     }
 
