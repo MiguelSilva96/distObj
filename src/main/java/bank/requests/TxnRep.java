@@ -1,4 +1,4 @@
-package bookstore.requests;
+package bank.requests;
 
 import io.atomix.catalyst.buffer.BufferInput;
 import io.atomix.catalyst.buffer.BufferOutput;

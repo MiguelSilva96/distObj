@@ -1,4 +1,4 @@
-package bookstore.bank;
+package bank;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,6 +31,7 @@ public class Account {
     }
 
     public boolean buy(float price) {
+        System.out.println(balance + "," + price);
         if (balance >= price) {
             balance -= price;
             transactions.add(new Txn(price));

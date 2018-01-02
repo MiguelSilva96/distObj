@@ -1,9 +1,6 @@
-package bookstore.bank;
+package bank;
 
 import bookstore.DistributedObjects;
-
-import java.util.LinkedList;
-import java.util.Queue;
 
 public class BankServer {
     public static void main(String[] args) throws Exception {
@@ -11,7 +8,7 @@ public class BankServer {
         DistributedObjects distObj = new DistributedObjects();
         Bank bank = new Bank();
         distObj.exportObj(bank);
-        distObj.bank_requests();
+        distObj.initialize_bank();
     }
 }
 

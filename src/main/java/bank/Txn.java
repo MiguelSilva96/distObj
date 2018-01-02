@@ -1,9 +1,10 @@
-package bookstore.bank;
+package bank;
 
 import java.sql.Timestamp;
 
 public class Txn {
 
+    public int bankid;
     public String iban;
 
     public float price;
@@ -14,7 +15,8 @@ public class Txn {
         this.date = new Timestamp(System.currentTimeMillis());
     }
 
-    public Txn(String iban, float price) {
+    public Txn(int bankid, String iban, float price) {
+        this.bankid = bankid;
         this.iban = iban;
         this.price = price;
     }

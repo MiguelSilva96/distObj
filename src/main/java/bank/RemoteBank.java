@@ -1,6 +1,9 @@
-package bookstore.bank;
+package bank;
 
-import bookstore.requests.*;
+import bank.requests.AddTxnRep;
+import bank.requests.TokenReq;
+import bank.requests.TxnRep;
+import bank.requests.TxnReq;
 import io.atomix.catalyst.concurrent.SingleThreadContext;
 import io.atomix.catalyst.transport.Address;
 import io.atomix.catalyst.transport.Connection;
