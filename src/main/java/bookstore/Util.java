@@ -1,5 +1,6 @@
 package bookstore;
 
+import bank.RemoteAccount;
 import io.atomix.catalyst.concurrent.SingleThreadContext;
 
 
@@ -14,6 +15,8 @@ public class Util {
             case "book":
                 ret = new RemoteBook(tc, res.address, res.id);
                 break;
+            case "account":
+                ret = new RemoteAccount(tc, res.address, res.id);
         }
         return ret;
     }

@@ -38,7 +38,6 @@ public class RemoteCart implements Cart {
     public boolean buy() {
         Txn x = new Txn(1, "PT12345", 1);
         Address adr = new Address("localhost", 10001);
-        System.out.println("buy req sent");
         send_req(new NettyTransport(), adr, x);
         return false;
     }

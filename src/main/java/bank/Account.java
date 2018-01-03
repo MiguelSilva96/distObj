@@ -1,42 +1,10 @@
 package bank;
 
-import java.util.ArrayList;
-import java.util.List;
 
-public class Account {
+public interface Account {
 
-    private String iban;
-    private String titular;
-    private float balance;
-    private List<Txn> transactions;
-
-
-    public Account(String iban, String titular, float balance) {
-        this.iban = iban;
-        this.titular = titular;
-        this.balance = balance;
-        this.transactions = new ArrayList<>();
-    }
-
-    public String getIban() {
-        return iban;
-    }
-
-    public String getTitular() {
-        return titular;
-    }
-
-    public float getBalance() {
-        return balance;
-    }
-
-    public boolean buy(float price) {
-        System.out.println(balance + "," + price);
-        if (balance >= price) {
-            balance -= price;
-            transactions.add(new Txn(price));
-            return true;
-        }
-        return false;
-    }
+    public String getIban();
+    //public String getTitular();
+    //public float getBalance();
+    public boolean buy(float price);
 }

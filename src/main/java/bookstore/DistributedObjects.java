@@ -15,9 +15,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static bank.Queues.send_rep;
-import static java.lang.Thread.sleep;
-
 public class DistributedObjects {
 
     Map<Integer, Object> objs;
@@ -35,6 +32,15 @@ public class DistributedObjects {
         register();
     }
 
+    public DistributedObjects(Address address) {
+        objs = new HashMap<>();
+        id = new AtomicInteger(0);
+        tc = new SingleThreadContext("srv-%d", new Serializer());
+        t  = new NettyTransport();
+        this.address = address;
+        register();
+    }
+
     public void register() {
         tc.serializer().register(StoreSearchReq.class);
         tc.serializer().register(StoreSearchRep.class);
@@ -46,6 +52,13 @@ public class DistributedObjects {
         tc.serializer().register(StoreMakeCartRep.class);
         tc.serializer().register(BookInfoReq.class);
         tc.serializer().register(BookInfoRep.class);
+
+        tc.serializer().register(BankSearchReq.class);
+        tc.serializer().register(BankSearchRep.class);
+        //tc.serializer().register(AccountInfoReq.class);
+        //tc.serializer().register(AccountInfoRep.class);
+        tc.serializer().register(BankTxnReq.class);
+        tc.serializer().register(BankTxnRep.class);
 
         tc.serializer().register(ObjRef.class);
 
@@ -91,16 +104,43 @@ public class DistributedObjects {
                     BookInfoRep rep = new BookInfoRep(isbn, title, author);
                     return Futures.completedFuture(rep);
                 });
+
                 c.handler(TxnRep.class, (m) -> {
-                    System.out.println(m.result);
+                    System.out.println("O banco disse: " + m.result);
                 });
+
             });
         });
     }
 
     public void initialize_bank() {
+        address = new Address("localhost:10003");
         tc.execute(() -> {
             t.server().listen(new Address(":10003"), (c) -> {
+                c.handler(BankSearchReq.class, (m) -> {
+                    Bank x = (Bank) objs.get(m.id);
+                    Account a = x.search(m.iban);
+                    int id_account = id.incrementAndGet();
+                    objs.put(id_account, a);
+                    ObjRef ref = new ObjRef(address, id_account, "account");
+                    return Futures.completedFuture(new BankSearchRep(ref));
+                });
+                /*
+                c.handler(AccountInfoReq.class, (m) -> {
+                    System.out.println("ola");
+                    Account a = (Account) objs.get(m.accountid);
+                    String iban = a.getIban();
+                    //String titular = a.getTitular();
+                    //float price = a.getBalance();
+                    return Futures.completedFuture(new AccountInfoRep(iban));
+                });
+                */
+                c.handler(BankTxnReq.class, (m) -> {
+                    Account a = (Account) objs.get(m.id);
+                    boolean res = a.buy(m.price);
+                    return Futures.completedFuture(new BankTxnRep(res));
+                });
+                /*
                 c.handler(TxnReq.class, (m) -> {
                     Bank x = (Bank) objs.get(m.bankid);
                     Account a = x.search(m.iban);
@@ -108,6 +148,7 @@ public class DistributedObjects {
 
                     send_rep(t, new Address("localhost", 10002), res);
                 });
+                */
             });
         });
     }
@@ -125,6 +166,8 @@ public class DistributedObjects {
 
         else if(o instanceof Bank)
             return new ObjRef(address, id.get(), "bank");
+        else if(o instanceof Account)
+            return new ObjRef(address, id.get(), "account");
 
         return null;
     }
@@ -133,6 +176,8 @@ public class DistributedObjects {
 
         if(o.cls.equals("store"))
             return new RemoteStore(tc, t, address);
+        if(o.cls.equals("bank"))
+            return new RemoteBank(tc, t, address);
 
         return null;
     }
