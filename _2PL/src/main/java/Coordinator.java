@@ -14,6 +14,7 @@ public class Coordinator {
     private Map<String, LockTable> lockTable;
     private Map<Integer, TransacTable> transacTable;
     private Map<String, ArrayList<Integer>> waitingQ;
+    private Map<Integer, Integer> allowLocks;
     private int tId;
 
     public Coordinator(Clique c, ThreadContext tc){
@@ -23,9 +24,102 @@ public class Coordinator {
         this.transacTable = new HashMap<>();
         this.waitingQ = new HashMap<>();
         this.tId = 0;
+        this.allowLocks = new HashMap<>();
         handlers();
     }
 
+    public void handlers(){
+        this.tc.execute(() -> {
+            c.handler(Transaction.class, (i, m) -> {
+                int transacID = tId;
+                tId++;
+                TransacTable tt = new TransacTable(m.resources, transacID, i);
+                transacTable.put(transacID, tt);
+                int state = -2;
+                switch (m.RW){
+                    case 0:
+                        if(!allowLocks.containsKey(i))
+                            allowLocks.put(i, 1);
+
+                        if(allowLocks.get(i) == 1){
+                            state = acquire_lock(m.resources, transacID);
+                            if(state == 1)
+                                c.send(i, "Lock acquired");
+                            else c.send(i, "Waiting for lock to be available");
+                        }else c.send(i, "Lock request after release lock");
+
+                        break;
+                    case 1:
+                        release(m.resources, transacID);
+                        action_release(m.resources);
+                        c.send(i, "Lock released");
+                        allowLocks.put(i, 0);
+                        break;
+                }
+            });
+        });
+    }
+
+
+    public void action_release(String resources){
+        ArrayList<Integer> tIDs = waitingQ.get(resources);
+        int state;
+        for(int id : tIDs){
+            state = acquire_lock(resources, id);
+            if(state == 1){
+                c.send(transacTable.get(id).getSenderId(), "Lock acquired");
+                break;
+            }
+        }
+    }
+
+    public void release (String resources, int tID) {
+        transacTable.get(tID).setResourcesLocked("");
+        transacTable.get(tID).setTransacState(-1);//-1 means transaction done
+        lockTable.get(resources).settId(-1);
+
+    }
+
+    public int acquire_lock(String resources, int tID){
+        int result = 1;
+        if(!lockTable.containsKey(resources)){
+            LockTable lt = new LockTable();
+            lt.settId(tID);
+            lockTable.put(resources, lt);
+            transacTable.get(tID).setTransacState(1);
+        }else{
+            LockTable lt = lockTable.get(resources);
+            if(lt.gettId() != -1){
+                if(waitingQ.containsKey(resources)){
+                    waitingQ.get(resources).add(tID);
+                }else{
+                    ArrayList<Integer> a = new ArrayList<>();
+                    a.add(tID);
+                    waitingQ.put(resources, a);
+                }
+                transacTable.get(tID).setTransacState(0);
+                lt.addtId_wait(tID);
+                result = 0;
+            }
+            if(lt.gettId() == -1 && waitingQ.containsKey(resources)){
+                waitingQ.get(resources).remove(tID);
+                transacTable.get(tID).setTransacState(1);
+                lt.settId(tID);
+                lt.removetId_wait(tID);
+                /*if(waitingQ.containsKey(resources)){
+                    waitingQ.get(resources).remove(tID);
+                    transacTable.get(tID).setTransacState(1);
+                    lt.settId(tID);
+                    lt.removetId_wait(tID);
+                }*/
+            }
+
+        }
+        return result;
+    }
+
+
+/*
     public void handlers(){
         this.tc.execute(() -> {
             c.handler(Transaction.class, (i, m) -> {
@@ -145,5 +239,5 @@ public class Coordinator {
         }
         return result;
     }
-
+*/
 }

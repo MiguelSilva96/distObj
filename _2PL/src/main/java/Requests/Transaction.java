@@ -7,7 +7,7 @@ import io.atomix.catalyst.serializer.Serializer;
 
 public class Transaction implements CatalystSerializable{
     public String resources;
-    public int RW; // 0--> acquire_read |  1 --> acquire_write | -1 --> release
+    public int RW; // 0--> acquire_lock |  1 --> release
 
     public Transaction(){}
 

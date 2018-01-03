@@ -3,18 +3,50 @@ import java.util.List;
 
 public class LockTable {
 
-    private List<Integer> transacID_r;
+    /*private List<Integer> transacID_r;
     private List<Integer> transacID_w;
     private List<Integer> transacID_r_wait;
     private List<Integer> transacID_w_wait;
-
+*/
+    private int tId;
+    private List<Integer> tId_wait;
+    /*
     public LockTable(){
         this.transacID_r = new ArrayList<>();
         this.transacID_w = new ArrayList<>();
         this.transacID_r_wait = new ArrayList<>();
         this.transacID_w_wait = new ArrayList<>();
+    }*/
+
+    public LockTable(){
+        this.tId = -1;
+        this.tId_wait = new ArrayList<>();
     }
 
+    public int gettId() {
+        return tId;
+    }
+
+    public void settId(int tId) {
+        this.tId = tId;
+    }
+
+    public List<Integer> gettId_wait() {
+        return tId_wait;
+    }
+
+    public void settId_wait(List<Integer> tIdWait) {
+        this.tId_wait = tIdWait;
+    }
+
+    public void addtId_wait(int id) {
+        this.tId_wait.add(id);
+    }
+
+    public void removetId_wait(int o){
+        this.tId_wait.remove(o);
+    }
+/*
     public List<Integer> getTransacID_r() {
         return transacID_r;
     }
@@ -58,5 +90,5 @@ public class LockTable {
         }
         return result;
     }
-
+*/
 }

@@ -3,14 +3,16 @@ import java.util.List;
 public class TransacTable {
     private String resourcesLocked;
     private int transacState; //-1--> done |  0 --> waiting  |  1 --> active | -2 --> UNKNOW
-    private long transacTime;
-    private int transacId;
+    private long transacTime; //DEPRECATED
+    private int transacId; // request id
+    private int senderId; //request sender id
 
-    public TransacTable(String resourcesLocked, int transacId){
+    public TransacTable(String resourcesLocked, int transacId, int senderId){
         this.transacState = 1;
         this.resourcesLocked = resourcesLocked;
         this.transacId = transacId;
         this.transacTime = System.currentTimeMillis();
+        this.senderId = senderId;
     }
 
     public String getResourcesLocked() {
@@ -43,5 +45,13 @@ public class TransacTable {
 
     public void setTransacId(int transacId) {
         this.transacId = transacId;
+    }
+
+    public int getSenderId() {
+        return senderId;
+    }
+
+    public void setSenderId(int senderId) {
+        this.senderId = senderId;
     }
 }
