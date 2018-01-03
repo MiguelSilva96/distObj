@@ -7,6 +7,7 @@ import io.atomix.catalyst.transport.Address;
 import io.atomix.catalyst.transport.Connection;
 import io.atomix.catalyst.transport.Transport;
 import io.atomix.catalyst.transport.netty.NettyTransport;
+import io.netty.channel.AdaptiveRecvByteBufAllocator;
 
 import java.util.concurrent.ExecutionException;
 
@@ -18,18 +19,7 @@ public class Queues {
         SingleThreadContext tc = new SingleThreadContext("srv-%d", new Serializer());
         Transport t = new NettyTransport();
 
-        register(tc);
-        initialize(tc, t, id);
-    }
-
-    public static void register(SingleThreadContext tc) {
-        tc.serializer().register(TxnReq.class);
-        tc.serializer().register(TxnRep.class);
-    }
-
-    public static void initialize(SingleThreadContext tc, Transport t, int id) {
         Address listen, request, reply;
-
         if (id == 1) {
             System.out.println("Sou da Store");
             listen = new Address(":10001"); //store queue
@@ -42,6 +32,16 @@ public class Queues {
             reply = new Address("localhost", 10001); //replies to store queue
         }
 
+        register(tc);
+        initialize(tc, t, listen, request, reply);
+    }
+
+    public static void register(SingleThreadContext tc) {
+        tc.serializer().register(TxnReq.class);
+        tc.serializer().register(TxnRep.class);
+    }
+
+    public static void initialize(SingleThreadContext tc, Transport t, Address listen, Address request, Address reply) {
         tc.execute(() -> {
             t.server().listen(listen, (c) -> {
                 c.handler(TxnReq.class, (m) -> {
@@ -50,7 +50,6 @@ public class Queues {
                 });
 
                 c.handler(TxnRep.class, (m) -> {
-                    System.out.println("sou o " + id + " e respondi " + m.result);
                     send_rep(t, reply, m.result);
                 });
             });
@@ -101,55 +100,6 @@ public class Queues {
         } catch (InterruptedException|ExecutionException e) {
             e.printStackTrace();
         }
-    }
-
-
-    //not used!!
-
-    public static void initialize_bank(SingleThreadContext tc, Transport t) {
-        tc.execute(() -> {
-            t.server().listen(new Address(":10002"), (c) -> {
-                c.handler(TxnReq.class, (m) -> {
-                    //receive from bank queue
-                    System.out.println("2. recebi da loja");
-                    Txn x = new Txn(m.bankid, m.iban, m.price);
-
-                    //send to bank
-                    System.out.println("3. enviei cenas para o banco");
-                    send_req(t, new Address("localhost", 10003), x);
-                });
-
-                c.handler(TxnRep.class, (m) -> {
-                    //recieve from bank
-                    System.out.println("6. recebi do banco");
-
-                    //send to store queue
-                    System.out.println("7. enviei para loja");
-                    send_rep(t, new Address("localhost", 10001), m.result);
-                });
-            });
-        });
-    }
-
-    public static void initialize_store(SingleThreadContext tc, Transport t) {
-        tc.execute(() -> {
-            t.server().listen(new Address(":10001"), (c) -> {
-                c.handler(TxnReq.class, (m) -> {
-                    //receive from store
-                    Txn x = new Txn(m.bankid, m.iban, m.price);
-
-                    //send to bank queue
-                    send_req(t, new Address("localhost", 10002), x);
-                });
-
-                c.handler(TxnRep.class, (m) -> {
-                    //recieve from bank queue
-
-                    //send to client
-                    send_rep(t, new Address("localhost", 10000), m.result);
-                });
-            });
-        });
     }
 }
 
