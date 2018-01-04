@@ -2,6 +2,7 @@
 import io.atomix.catalyst.concurrent.Futures;
 import io.atomix.catalyst.concurrent.ThreadContext;
 import io.atomix.catalyst.transport.Address;
+import io.atomix.catalyst.transport.Connection;
 import io.atomix.catalyst.transport.Transport;
 import io.atomix.catalyst.transport.netty.NettyTransport;
 import pt.haslab.ekit.Clique;
@@ -9,6 +10,7 @@ import pt.haslab.ekit.Log;
 import requests.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class Coordinator {
@@ -20,15 +22,8 @@ public class Coordinator {
 
     /*
     * Doubts:
-    *   - Do we trim this log after commit??
-    *   - if so we need to count appends maybe
     *   - Does the log need synchronized access?
-    * IMPORTANT:
-    *   - This version dows not have all logs
-    *   - Transaction needs access to log
-    *
     * */
-
 
     public Coordinator(Clique clique, int id, ThreadContext tc) {
         this.clique = clique;
@@ -51,13 +46,17 @@ public class Coordinator {
                         rep = new BeginRep(txid++);
                     }
                     transactions.put(curId, new Transaction(clique, c));
-                    log.append(rep); //rep because it has the txid, do we need this?
+                    log.append(rep);
                     return Futures.completedFuture(rep);
                 });
                 c.handler(StartCommit.class, (m) -> {
                     Transaction tr = transactions.get(m.getTxid());
                     tr.firstPhase();
-                    log.append(m);
+                    Connection cl = tr.getClient();
+                    List<Integer> part = tr.getParticipants();
+                    TransactInfo tinf = new TransactInfo(m.getTxid(), cl, part);
+                    StartCommit scLog = new StartCommit(tinf);
+                    log.append(scLog);
                 });
             });
         });
@@ -65,14 +64,43 @@ public class Coordinator {
 
     private void handlers() {
         tc.execute(() -> {
-            log.handler(Integer.class, (i, status) -> {
-                if(status == Simulation.START) {
-                    //repeat request
-                 //   send(new requests.Prepare());
-                }
+            log.handler(Begin.class, (i, b) -> {
+                TransactInfo ti = b.getTransactInfo();
+                Connection cl = ti.getClient();
+                int txid = ti.getTxid();
+                transactions.put(txid, new Transaction(clique, cl));
+            });
+            log.handler(NewParticipant.class, (i, n) -> {
+                Transaction t = transactions.get(n.getTxid());
+                t.addParticipant(n.getParticipant());
+            });
+            log.handler(StartCommit.class, (i, sc) -> {
+                TransactInfo tinfo = sc.getTransactInfo();
+                Transaction t = transactions.get(tinfo.getTxid());
+                t.setParticipants(tinfo.getParticipants());
+            });
+            log.handler(Commit.class, (i, c) -> {
+                // take info this can be trimmed from log
+                transactions.remove(c.getTxid());
+            });
+            log.handler(Rollback.class, (i, c) -> {
+                // take info this can be trimmed from log
+                transactions.remove(c.getTxid());
             });
             log.open().thenRun(() -> {
-                // do we need something here?
+                // restart current phase of each one;
+                transactions.forEach((k, v) -> {
+                    int phase = v.getPhase();
+                    if(phase == 1)
+                        // restart first phase
+                        v.firstPhase();
+                    else if(phase == 0)
+                        // send abort to all the resources involved
+                        v.abort(k);
+                    // what to do about 2nd phase
+                    // being on 2nd phase means it already
+                    // commited/rolledback
+                });
             });
 
             clique.handler(NewParticipant.class, (j, m) -> {
@@ -83,12 +111,15 @@ public class Coordinator {
 
             clique.handler(Vote.class, (j, m) -> {
                 Transaction tr = transactions.get(m.getTxid());
-                tr.voted(m, j);
+                Object res = tr.voted(m, j);
+                if(res != null) {
+                    // means commit or rollback happened
+                    log.append(res);
+                }
             });
 
-            clique.open().thenRun(() -> {
-                System.out.println("started");
-            });
+            clique.open().thenRun(() -> System.out.println("open"));
+
         }).join();
     }
 

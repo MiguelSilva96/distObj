@@ -6,20 +6,24 @@ import io.atomix.catalyst.serializer.CatalystSerializable;
 import io.atomix.catalyst.serializer.Serializer;
 
 public class Prepare implements CatalystSerializable {
-    int txid;
+    TransactInfo transactInfo;
 
     public Prepare() {}
-    public Prepare(int txid) {
-        this.txid = txid;
+    public Prepare(TransactInfo transactInfo) {
+        this.transactInfo = transactInfo;
     }
 
     @Override
     public void writeObject(BufferOutput<?> bufferOutput, Serializer serializer) {
-        bufferOutput.writeInt(txid);
+        serializer.writeObject(transactInfo, bufferOutput);
     }
 
     @Override
     public void readObject(BufferInput<?> bufferInput, Serializer serializer) {
-        txid = bufferInput.readInt();
+        transactInfo = serializer.readObject(bufferInput);
+    }
+
+    public TransactInfo getTransactInfo() {
+        return transactInfo;
     }
 }

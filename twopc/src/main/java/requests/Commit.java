@@ -6,20 +6,24 @@ import io.atomix.catalyst.serializer.CatalystSerializable;
 import io.atomix.catalyst.serializer.Serializer;
 
 public class Commit implements CatalystSerializable {
-    String transact;
+    int txid;
 
     public Commit() {}
-    public Commit(String transact) {
-        this.transact = transact;
+    public Commit(int txid) {
+        this.txid = txid;
+    }
+
+    public int getTxid() {
+        return txid;
     }
 
     @Override
     public void writeObject(BufferOutput<?> bufferOutput, Serializer serializer) {
-        bufferOutput.writeString(transact);
+        bufferOutput.writeInt(txid);
     }
 
     @Override
     public void readObject(BufferInput<?> bufferInput, Serializer serializer) {
-        transact = bufferInput.readString();
+        txid = bufferInput.readInt();
     }
 }

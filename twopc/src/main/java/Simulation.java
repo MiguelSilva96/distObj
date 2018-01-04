@@ -1,4 +1,5 @@
 
+
 import io.atomix.catalyst.concurrent.SingleThreadContext;
 import io.atomix.catalyst.concurrent.ThreadContext;
 import io.atomix.catalyst.serializer.Serializer;
@@ -31,13 +32,19 @@ public class Simulation {
         tc.serializer().register(Rollback.class);
         tc.serializer().register(Begin.class);
         tc.serializer().register(StartCommit.class);
-
+        tc.serializer().register(TransactInfo.class);
+        tc.serializer().register(Vote.class);
+        tc.serializer().register(BeginRep.class);
+        tc.serializer().register(NewParticipant.class);
 
         Clique c = new Clique(t, id, addresses);
         if(id == 2) {
-            new Coordinator(c, id, tc);
+            (new Coordinator(c, id, tc)).listen(new Address(":12348"));
         } else {
-            new Participant(c, id, tc, 2);
+            if(id == 1)
+                (new Participant(c, id, tc, 2)).listen(new Address(":12349"));
+            else
+                (new Participant(c, id, tc, 2)).listen(new Address(":12341"));
         }
     }
 }

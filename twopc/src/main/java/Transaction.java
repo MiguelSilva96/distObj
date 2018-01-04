@@ -15,13 +15,14 @@ public class Transaction {
     private Integer votedCommit;
     private Connection client;
     private List<Integer> participants;
+    private int phase;
 
     public Transaction(Clique clique, Connection client) {
         votedCommit = 0;
         this.clique = clique;
         this.participants = new ArrayList<>();
         this.client = client;
-
+        phase = 0;
     }
 
     public void addParticipant(int participant) {
@@ -30,24 +31,52 @@ public class Transaction {
 
     public void firstPhase() {
         send(new Prepare());
+        phase = 1;
     }
 
-    public void voted(Vote vote, int voter) {
+    public void setParticipants(List<Integer> participants) {
+        this.participants = participants;
+    }
+
+    public void abort(int mytxid) {
+        Rollback rb = new Rollback(mytxid);
+        send(rb);
+        client.send(rb);
+    }
+
+    public Object voted(Vote vote, int voter) {
+        Object res = null;
         if (vote.getVote().equals("ABORT")) {
-            send(new Rollback(), voter);
-            //class 4 this
-            client.send("ABORTED:" + vote.getTxid());
+            res = new Rollback(vote.getTxid());
+            send(res, voter);
+            client.send(res);
         } else {
             synchronized (votedCommit) {
                 votedCommit++;
                 if (votedCommit == participants.size()) {
-                    send(new Commit());
-                    //class 4 this
-                    client.send("COMMITED:" + vote.getTxid());
+                    res = new Commit(vote.getTxid());
+                    send(res);
+                    client.send(res);
+                    phase = 2;
                 }
             }
         }
+        return res;
     }
+
+    public Connection getClient() {
+        return client;
+    }
+
+    public List<Integer> getParticipants() {
+        return participants;
+    }
+
+    public int getPhase() {
+        return phase;
+
+    }
+
     private void send(Object message) {
         for(Integer i : participants) {
             clique.send(i, message);
