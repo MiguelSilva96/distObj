@@ -28,6 +28,6 @@ public class AccountImpl implements Account {
         }*/
         balance -= price;
         transactions.add(new Txn(price));
-        return false;
+        return true;
     }
 }

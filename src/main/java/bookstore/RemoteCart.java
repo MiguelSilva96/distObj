@@ -42,7 +42,6 @@ public class RemoteCart implements Cart {
 
     public boolean buy() {
         CartBuyRep r = null;
-
         try {
             r = (CartBuyRep) tc.execute(() ->
                     c.sendAndReceive(new CartBuyReq(id))
@@ -50,7 +49,6 @@ public class RemoteCart implements Cart {
         } catch (InterruptedException|ExecutionException e){
             e.printStackTrace();
         }
-        System.out.println("ola");
 
         if(r.result == false) return false;
         else return send2bank();
@@ -68,10 +66,11 @@ public class RemoteCart implements Cart {
     }
 
     private boolean send2bank() {
-        Address bank_address = new Address("localhost", 10003);
+        Address bank_address = new Address("localhost", 11112);
 
-        DistributedObjects distObj = new DistributedObjects(bank_address);
+        DistributedObjects distObj = new DistributedObjects(new Address("localhost:20000"));
         Bank bank = (Bank) distObj.importObj(new ObjRef(bank_address, 1, "bank"));
+
         Account account = bank.search("PT12345");
         boolean res = account.buy(100);
         System.out.println("resposta do banco: " + res);

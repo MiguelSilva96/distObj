@@ -1,6 +1,8 @@
 package bank;
 
 import bank.requests.*;
+import bookstore.requests.CartAddReq;
+import bookstore.requests.StoreMakeCartReq;
 import io.atomix.catalyst.concurrent.SingleThreadContext;
 import io.atomix.catalyst.transport.Address;
 import io.atomix.catalyst.transport.Connection;
@@ -12,50 +14,40 @@ import java.util.concurrent.ExecutionException;
 public class RemoteAccount implements Account {
 
     private final SingleThreadContext tc;
-    private final Address address;
-    private final Connection c;
+    private Connection c;
+    private Address address;
     public int id;
 
     public RemoteAccount(SingleThreadContext tc, Address address, int id) {
         this.tc = tc;
-        this.id = id;
         this.address = address;
         Transport t = new NettyTransport();
-        Connection connection = null;
         try {
-            connection = tc.execute(() ->
+            c = tc.execute(() ->
                     t.client().connect(address)
             ).join().get();
         } catch(InterruptedException|ExecutionException e) {
             e.printStackTrace();
+            c = null;
         }
-        c = connection;
+        this.id = id;
     }
 
     @Override
     public String getIban() {
-        AccountInfoRep rep = null;
-        try {
-            rep = (AccountInfoRep) tc.execute(() ->
-                    c.sendAndReceive(new AccountInfoReq(1, id))
-            ).join().get();
-        } catch (InterruptedException|ExecutionException e) {
-            e.printStackTrace();
-        }
-        if(rep == null) return null;
-        return rep.iban;
+        return "";
     }
 
     @Override
     public boolean buy(float price) {
-        BankTxnRep r = null;
+        BankTxnRep rep = null;
         try {
-            r = (BankTxnRep) tc.execute(() ->
+            rep = (BankTxnRep) tc.execute(() ->
                     c.sendAndReceive(new BankTxnReq(id, price))
             ).join().get();
         } catch (InterruptedException|ExecutionException e) {
             e.printStackTrace();
         }
-        return r.result;
+        return rep.result;
     }
 }

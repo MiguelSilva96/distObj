@@ -142,7 +142,7 @@ public class DistributedObjects {
 
     public void initialize_bank() {
         tc.execute(() -> {
-            t.server().listen(new Address(":10003"), (c) -> {
+            t.server().listen(new Address(":20000"), (c) -> {
                 c.handler(BankSearchReq.class, (m) -> {
                     OrderIn oI = objs.get(m.id);
                     oI.updateTimestamp(System.currentTimeMillis());
@@ -156,7 +156,7 @@ public class DistributedObjects {
                 c.handler(BankTxnReq.class, (m) -> {
                     OrderIn oIAccount = objs.get(m.accountid);
                     oIAccount.updateTimestamp(System.currentTimeMillis());
-                    Account a = (Account) oIAccount;
+                    Account a = (Account) oIAccount.obj;
                     boolean res = a.buy(m.price);
                     objs.remove(m.accountid);
                     return Futures.completedFuture(new BankTxnRep(res));

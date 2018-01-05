@@ -40,7 +40,6 @@ public class RemoteBank implements Bank {
         } catch (InterruptedException|ExecutionException e) {
             e.printStackTrace();
         }
-        return (Account) Util.makeRemote(tc, r.ref, id, null);
-
+        return (Account) Util.makeRemote(tc, r.ref, 1, null);
     }
 }
