@@ -6,6 +6,7 @@ import io.atomix.catalyst.concurrent.SingleThreadContext;
 
 import pt.haslab.ekit.Clique;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 public class RemoteAccount implements Account {
@@ -27,14 +28,15 @@ public class RemoteAccount implements Account {
 
     @Override
     public boolean buy(float price) {
-        BankTxnRep rep = null;
+        BankTxnRep r = null;
+        CompletableFuture<BankTxnRep> rep = new CompletableFuture<>();
+        clique.sendAndReceive(1, new BankTxnReq(id, price))
+                .thenAccept(s -> rep.complete((BankTxnRep) s));
         try {
-            rep = (BankTxnRep) tc.execute(() ->
-                    clique.sendAndReceive(1, new BankTxnReq(id, price))
-            ).join().get();
+            r = rep.get();
         } catch (InterruptedException|ExecutionException e) {
             e.printStackTrace();
         }
-        return rep.result;
+        return r.result;
     }
 }

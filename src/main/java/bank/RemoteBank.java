@@ -1,10 +1,12 @@
 package bank;
 
 import bank.requests.*;
+import mudar.ObjRef;
 import mudar.Util;
 import io.atomix.catalyst.concurrent.SingleThreadContext;
 import pt.haslab.ekit.Clique;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 public class RemoteBank implements Bank {
@@ -23,13 +25,15 @@ public class RemoteBank implements Bank {
     @Override
     public Account search(String iban) {
         BankSearchRep r = null;
+        CompletableFuture<BankSearchRep> rep = new CompletableFuture<>();
+        clique.sendAndReceive(1, new BankSearchReq(iban, id))
+                .thenAccept(s -> rep.complete((BankSearchRep)s));
         try {
-            r = (BankSearchRep) tc.execute(() ->
-                    clique.sendAndReceive(1, new BankSearchReq(iban, id))
-            ).join().get();
+            r = rep.get();
         } catch (InterruptedException|ExecutionException e) {
             e.printStackTrace();
         }
+
         return (Account) Util.makeRemote(tc, r.ref, 1, null, clique);
     }
 }

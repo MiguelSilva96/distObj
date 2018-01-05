@@ -38,7 +38,7 @@ public class DistributedObjects {
         addressStore = new Address("localhost:10000");
         addressBank = new Address("localhost:20000");
         //addressCoord = new Address("localhost:10000");
-        Address[] adr = {addressStore, addressBank};
+        Address[] adr = {new Address(":11111"), new Address(":33333")};
         this.addresses = adr;
     }
 
@@ -143,7 +143,6 @@ public class DistributedObjects {
         clique = new Clique(t, Clique.Mode.ANY, 1, addresses);
 
         tc.execute(() -> {
-            //t.server().listen(new Address(":20000"), (c) -> {
 
             clique.handler(BankSearchReq.class, (j, m) -> {
                 OrderIn oI = objs.get(m.id);
@@ -166,36 +165,9 @@ public class DistributedObjects {
             });
 
             clique.open().thenRun(() -> System.out.println("open"));
-            //});
+
         }).join();
 
-
-
-
-        /*
-        tc.execute(() -> {
-            t.server().listen(new Address(":20000"), (c) -> {
-                c.handler(BankSearchReq.class, (m) -> {
-                    OrderIn oI = objs.get(m.id);
-                    oI.updateTimestamp(System.currentTimeMillis());
-                    Bank x = (Bank) oI.obj;
-                    Account a = x.search(m.iban);
-                    int id_account = id.incrementAndGet();
-                    objs.put(id_account, new OrderIn(a, System.currentTimeMillis()));
-                    ObjRef ref = new ObjRef(addressBank, id_account, "account");
-                    return Futures.completedFuture(new BankSearchRep(ref));
-                });
-                c.handler(BankTxnReq.class, (m) -> {
-                    OrderIn oIAccount = objs.get(m.accountid);
-                    oIAccount.updateTimestamp(System.currentTimeMillis());
-                    Account a = (Account) oIAccount.obj;
-                    boolean res = a.buy(m.price);
-                    objs.remove(m.accountid);
-                    return Futures.completedFuture(new BankTxnRep(res));
-                });
-            });
-        });
-        */
     }
 
 
@@ -258,8 +230,6 @@ class MonitorObjs extends Thread {
                 e.printStackTrace();
             }
 
-            System.out.println(objs.size());
-
             it = objs.entrySet().iterator();
 
             while (it.hasNext()) {
@@ -272,7 +242,6 @@ class MonitorObjs extends Thread {
                     diffTime = 15000;
 
                 if(System.currentTimeMillis() - entry.getValue().timeIn >= diffTime){
-                    System.out.println("vais embora");
                     it.remove();
                 }
             }
