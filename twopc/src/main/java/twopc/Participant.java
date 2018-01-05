@@ -1,14 +1,13 @@
-import io.atomix.catalyst.concurrent.Futures;
+package twopc;
+
 import io.atomix.catalyst.concurrent.ThreadContext;
 import io.atomix.catalyst.transport.Address;
-import io.atomix.catalyst.transport.Connection;
 import io.atomix.catalyst.transport.Transport;
 import io.atomix.catalyst.transport.netty.NettyTransport;
 import pt.haslab.ekit.Clique;
 import pt.haslab.ekit.Log;
-import requests.*;
+import twopc.requests.*;
 
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public class Participant {

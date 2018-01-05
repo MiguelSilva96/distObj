@@ -1,29 +1,27 @@
-package requests;
+package twopc.requests;
 
 import io.atomix.catalyst.buffer.BufferInput;
 import io.atomix.catalyst.buffer.BufferOutput;
 import io.atomix.catalyst.serializer.CatalystSerializable;
 import io.atomix.catalyst.serializer.Serializer;
 
-public class Commit implements CatalystSerializable {
-    int txid;
+public class Begin implements CatalystSerializable {
 
-    public Commit() {}
-    public Commit(int txid) {
-        this.txid = txid;
-    }
+    private TransactInfo transactInfo;
 
-    public int getTxid() {
-        return txid;
-    }
+    public Begin() {}
 
     @Override
     public void writeObject(BufferOutput<?> bufferOutput, Serializer serializer) {
-        bufferOutput.writeInt(txid);
+        serializer.writeObject(transactInfo, bufferOutput);
     }
 
     @Override
     public void readObject(BufferInput<?> bufferInput, Serializer serializer) {
-        txid = bufferInput.readInt();
+        transactInfo = serializer.readObject(bufferInput);
+    }
+
+    public TransactInfo getTransactInfo() {
+        return  transactInfo;
     }
 }

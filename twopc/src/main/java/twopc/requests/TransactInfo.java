@@ -1,23 +1,32 @@
-package requests;
+package twopc.requests;
 
 import io.atomix.catalyst.buffer.BufferInput;
 import io.atomix.catalyst.buffer.BufferOutput;
 import io.atomix.catalyst.serializer.CatalystSerializable;
 import io.atomix.catalyst.serializer.Serializer;
-import io.atomix.catalyst.transport.Connection;
-import pt.haslab.ekit.Clique;
+
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 public class TransactInfo implements CatalystSerializable {
     private int txid;
     private List<Integer> participants;
+    private CompletableFuture<Object> completedCommit;
 
     public TransactInfo() {}
     public TransactInfo(int txid, List<Integer> participants) {
         this.txid = txid;
         this.participants = participants;
+    }
+
+    public void setCompletedCommit(CompletableFuture<Object> completedCommit) {
+        this.completedCommit = completedCommit;
+    }
+
+    public CompletableFuture<Object> getCompletedCommit() {
+        return completedCommit;
     }
 
     public int getTxid() {

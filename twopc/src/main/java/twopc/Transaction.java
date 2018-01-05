@@ -1,10 +1,10 @@
+package twopc;
 
-import io.atomix.catalyst.transport.Connection;
 import pt.haslab.ekit.Clique;
-import requests.Commit;
-import requests.Prepare;
-import requests.Rollback;
-import requests.Vote;
+import twopc.requests.Commit;
+import twopc.requests.Prepare;
+import twopc.requests.Rollback;
+import twopc.requests.Vote;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,6 +33,14 @@ public class Transaction {
         this.completedCommit = completedCommit;
         send(new Prepare());
         phase = 1;
+    }
+
+    public CompletableFuture<Object> getCompletedCommit() {
+        return completedCommit;
+    }
+
+    public void setCompletedCommit(CompletableFuture<Object> completedCommit) {
+        this.completedCommit = completedCommit;
     }
 
     public void setParticipants(List<Integer> participants) {

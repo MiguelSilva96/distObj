@@ -1,16 +1,17 @@
-package requests;
+package twopc.requests;
 
 import io.atomix.catalyst.buffer.BufferInput;
 import io.atomix.catalyst.buffer.BufferOutput;
 import io.atomix.catalyst.serializer.CatalystSerializable;
 import io.atomix.catalyst.serializer.Serializer;
 
-public class Rollback implements CatalystSerializable {
+public class BeginRep implements CatalystSerializable {
 
     private int txid;
 
-    public Rollback() {}
-    public Rollback(int txid) {
+    public BeginRep() {}
+
+    public BeginRep(int txid) {
         this.txid = txid;
     }
 

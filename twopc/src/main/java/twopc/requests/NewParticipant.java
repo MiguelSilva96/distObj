@@ -1,41 +1,41 @@
-package requests;
+package twopc.requests;
 
 import io.atomix.catalyst.buffer.BufferInput;
 import io.atomix.catalyst.buffer.BufferOutput;
 import io.atomix.catalyst.serializer.CatalystSerializable;
 import io.atomix.catalyst.serializer.Serializer;
 
-public class Vote implements CatalystSerializable {
-    private String vote;
+public class NewParticipant implements CatalystSerializable {
     private int txid;
+    private int participant;
 
-    public Vote() {
-
-    }
-
-    public Vote(String vote, int txid) {
-        this.vote = vote;
+    public NewParticipant() {}
+    public NewParticipant(int txid) {
         this.txid = txid;
     }
-
-    public String getVote() {
-        return vote;
+    public NewParticipant(int txid, int participant) {
+        this.txid = txid;
+        this.participant = participant;
     }
 
     public int getTxid() {
         return txid;
     }
 
+    public int getParticipant() {
+        return participant;
+    }
+
     @Override
     public void writeObject(BufferOutput<?> bufferOutput, Serializer serializer) {
-        bufferOutput.writeString(vote);
         bufferOutput.writeInt(txid);
+        bufferOutput.writeInt(participant);
     }
 
     @Override
     public void readObject(BufferInput<?> bufferInput, Serializer serializer) {
-        vote = bufferInput.readString();
         txid = bufferInput.readInt();
+        participant = bufferInput.readInt();
     }
 
 }

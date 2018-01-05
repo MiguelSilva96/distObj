@@ -1,4 +1,4 @@
-
+package twopc;
 
 import io.atomix.catalyst.concurrent.SingleThreadContext;
 import io.atomix.catalyst.concurrent.ThreadContext;
@@ -7,7 +7,7 @@ import io.atomix.catalyst.transport.Address;
 import io.atomix.catalyst.transport.Transport;
 import io.atomix.catalyst.transport.netty.NettyTransport;
 import pt.haslab.ekit.Clique;
-import requests.*;
+import twopc.requests.*;
 
 public class Simulation {
     private static int prepared = 0;
@@ -37,7 +37,7 @@ public class Simulation {
         tc.serializer().register(BeginRep.class);
         tc.serializer().register(NewParticipant.class);
 
-        Clique c = new Clique(t, id, addresses);
+        Clique c = new Clique(t, Clique.Mode.ANY, id, addresses);
         if(id == 2) {
             (new Coordinator(c, id, tc)).listen(new Address(":12348"));
         } else {

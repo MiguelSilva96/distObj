@@ -1,4 +1,4 @@
-
+package twopc;
 
 import io.atomix.catalyst.concurrent.Futures;
 import io.atomix.catalyst.concurrent.ThreadContext;
@@ -8,7 +8,7 @@ import io.atomix.catalyst.transport.Transport;
 import io.atomix.catalyst.transport.netty.NettyTransport;
 import pt.haslab.ekit.Clique;
 import pt.haslab.ekit.Log;
-import requests.*;
+import twopc.requests.*;
 
 import java.util.HashMap;
 import java.util.List;
@@ -57,6 +57,7 @@ public class Coordinator {
                     tr.firstPhase(compFuture);
                     List<Integer> part = tr.getParticipants();
                     TransactInfo tinf = new TransactInfo(m.getTxid(), part);
+                    tinf.setCompletedCommit(compFuture);
                     StartCommit scLog = new StartCommit(tinf);
                     log.append(scLog);
                     return compFuture;
@@ -80,6 +81,7 @@ public class Coordinator {
                 TransactInfo tinfo = sc.getTransactInfo();
                 Transaction t = transactions.get(tinfo.getTxid());
                 t.setParticipants(tinfo.getParticipants());
+                t.setCompletedCommit(tinfo.getCompletedCommit());
             });
             log.handler(Commit.class, (i, c) -> {
                 // take info this can be trimmed from log
@@ -95,8 +97,7 @@ public class Coordinator {
                     int phase = v.getPhase();
                     if(phase == 1)
                         // restart first phase
-                        //NOT GOOD
-                        v.firstPhase(new CompletableFuture<>());
+                        v.firstPhase(v.getCompletedCommit());
                     else if(phase == 0)
                         // send abort to all the resources involved
                         v.abort(k);
