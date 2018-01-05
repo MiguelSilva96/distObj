@@ -1,6 +1,7 @@
 package bookstore;
 
 public class BookImpl implements Book {
+
     public BookImpl(int isbn, String title, String author) {
         this.isbn = isbn;
         this.title = title;

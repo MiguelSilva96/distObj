@@ -1,33 +1,29 @@
-package bookstore.requests;
+package twopc.requests;
 
 import io.atomix.catalyst.buffer.BufferInput;
 import io.atomix.catalyst.buffer.BufferOutput;
 import io.atomix.catalyst.serializer.CatalystSerializable;
 import io.atomix.catalyst.serializer.Serializer;
 
-public class CartAddReq implements CatalystSerializable {
-    public int cartid;
-    public int bookid;
-    public int txid;
+public class Commit implements CatalystSerializable {
+    int txid;
 
-    public CartAddReq() {}
-    public CartAddReq(int cartid, int bookid, int txid) {
-        this.cartid = cartid;
-        this.bookid = bookid;
+    public Commit() {}
+    public Commit(int txid) {
         this.txid = txid;
+    }
+
+    public int getTxid() {
+        return txid;
     }
 
     @Override
     public void writeObject(BufferOutput<?> bufferOutput, Serializer serializer) {
-        bufferOutput.writeInt(cartid);
-        bufferOutput.writeInt(bookid);
         bufferOutput.writeInt(txid);
     }
 
     @Override
     public void readObject(BufferInput<?> bufferInput, Serializer serializer) {
-        cartid = bufferInput.readInt();
-        bookid = bufferInput.readInt();
         txid = bufferInput.readInt();
     }
 }

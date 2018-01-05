@@ -23,10 +23,11 @@
 
     <dependencies>
         <dependency>
-            <groupId>io.atomix.catalyst</groupId>
-            <artifactId>catalyst-netty</artifactId>
-            <version>1.2.1</version>
+            <groupId>pt.haslab</groupId>
+            <artifactId>ekit</artifactId>
+            <version>1.1-SNAPSHOT</version>
         </dependency>
     </dependencies>
+
 
 </project>

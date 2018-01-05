@@ -34,16 +34,11 @@ public class RemoteStore implements Store {
         id = 1; //to be solved
     }
 
-    public Book get(int isbn) {
-        //so pra implementar
-        return null;
-    }
-
-    public Book search(String title) {
+    public Book search(String title, int txid) {
         StoreSearchRep r = null;
         try {
             r = (StoreSearchRep) tc.execute(() ->
-                    c.sendAndReceive(new StoreSearchReq("one", id))
+                    c.sendAndReceive(new StoreSearchReq("one", id, txid))
             ).join().get();
         } catch (InterruptedException|ExecutionException e) {
             e.printStackTrace();
@@ -51,11 +46,11 @@ public class RemoteStore implements Store {
         return (Book) Util.makeRemote(tc, r.ref);
     }
 
-    public Cart newCart() {
+    public Cart newCart(int txid) {
         StoreMakeCartRep r = null;
         try {
             r = (StoreMakeCartRep) tc.execute(() ->
-                    c.sendAndReceive(new StoreMakeCartReq(id))
+                    c.sendAndReceive(new StoreMakeCartReq(id, txid))
             ).join().get();
         } catch(InterruptedException|ExecutionException e) {
             e.printStackTrace();

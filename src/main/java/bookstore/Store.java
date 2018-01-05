@@ -2,7 +2,6 @@ package bookstore;
 
 public interface Store {
 
-    public Book get(int isbn);
-    public Book search(String title);
-    public Cart newCart();
+    public Book search(String title, int txid);
+    public Cart newCart(int txid);
 }
