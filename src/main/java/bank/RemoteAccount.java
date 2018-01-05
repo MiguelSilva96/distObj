@@ -1,35 +1,22 @@
 package bank;
 
 import bank.requests.*;
-import bookstore.requests.CartAddReq;
-import bookstore.requests.StoreMakeCartReq;
+
 import io.atomix.catalyst.concurrent.SingleThreadContext;
-import io.atomix.catalyst.transport.Address;
-import io.atomix.catalyst.transport.Connection;
-import io.atomix.catalyst.transport.Transport;
-import io.atomix.catalyst.transport.netty.NettyTransport;
+
+import pt.haslab.ekit.Clique;
 
 import java.util.concurrent.ExecutionException;
 
 public class RemoteAccount implements Account {
 
     private final SingleThreadContext tc;
-    private Connection c;
-    private Address address;
+    private final Clique clique;
     public int id;
 
-    public RemoteAccount(SingleThreadContext tc, Address address, int id) {
+    public RemoteAccount(SingleThreadContext tc, Clique clique, int id) {
         this.tc = tc;
-        this.address = address;
-        Transport t = new NettyTransport();
-        try {
-            c = tc.execute(() ->
-                    t.client().connect(address)
-            ).join().get();
-        } catch(InterruptedException|ExecutionException e) {
-            e.printStackTrace();
-            c = null;
-        }
+        this.clique = clique;
         this.id = id;
     }
 
@@ -43,7 +30,7 @@ public class RemoteAccount implements Account {
         BankTxnRep rep = null;
         try {
             rep = (BankTxnRep) tc.execute(() ->
-                    c.sendAndReceive(new BankTxnReq(id, price))
+                    clique.sendAndReceive(1, new BankTxnReq(id, price))
             ).join().get();
         } catch (InterruptedException|ExecutionException e) {
             e.printStackTrace();

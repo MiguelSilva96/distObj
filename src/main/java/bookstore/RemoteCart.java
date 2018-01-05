@@ -66,14 +66,15 @@ public class RemoteCart implements Cart {
     }
 
     private boolean send2bank() {
-        Address bank_address = new Address("localhost", 11112);
+        Address address = new Address("localhost", 11112);
 
-        DistributedObjects distObj = new DistributedObjects(new Address("localhost:20000"));
-        Bank bank = (Bank) distObj.importObj(new ObjRef(bank_address, 1, "bank"));
+        DistributedObjects distObj = new DistributedObjects();
+        Bank bank = (Bank) distObj.importObj(new ObjRef(address, 1, "bank"));
 
         Account account = bank.search("PT12345");
         boolean res = account.buy(100);
         System.out.println("resposta do banco: " + res);
+
         return res;
     }
 }

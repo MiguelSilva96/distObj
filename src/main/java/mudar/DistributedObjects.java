@@ -12,6 +12,8 @@ import io.atomix.catalyst.transport.Address;
 import io.atomix.catalyst.transport.Transport;
 import io.atomix.catalyst.transport.netty.NettyTransport;
 
+import pt.haslab.ekit.Clique;
+
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -21,26 +23,23 @@ public class DistributedObjects {
     AtomicInteger id;
     SingleThreadContext tc;
     Transport t;
-    Address address;
+    Address addressStore, addressBank, addressCoord;
+    Clique clique;
+    Address[] addresses;
 
     public DistributedObjects() {
         objs = new HashMap<>();
         id = new AtomicInteger(0);
         tc = new SingleThreadContext("srv-%d", new Serializer());
         t  = new NettyTransport();
-        address = new Address("localhost:10000");
         register();
         new MonitorObjs(objs).start();
-    }
 
-    public DistributedObjects(Address address) {
-        objs = new HashMap<>();
-        id = new AtomicInteger(0);
-        tc = new SingleThreadContext("srv-%d", new Serializer());
-        t  = new NettyTransport();
-        this.address = address;
-        register();
-        new MonitorObjs(objs).start();
+        addressStore = new Address("localhost:10000");
+        addressBank = new Address("localhost:20000");
+        //addressCoord = new Address("localhost:10000");
+        Address[] adr = {addressStore, addressBank};
+        this.addresses = adr;
     }
 
     public void register() {
@@ -74,7 +73,7 @@ public class DistributedObjects {
                     Book b = x.search(m.title);
                     int id_book = id.incrementAndGet();
                     objs.put(id_book, new OrderIn(b, System.currentTimeMillis()));
-                    ObjRef ref = new ObjRef(address, id_book, "book");
+                    ObjRef ref = new ObjRef(addressStore, id_book, "book");
                     return Futures.completedFuture(new StoreSearchRep(ref));
                 });
                 c.handler(StoreMakeCartReq.class, (m) -> {
@@ -84,7 +83,7 @@ public class DistributedObjects {
                     Cart cart = x.newCart();
                     int idCart = id.incrementAndGet();
                     objs.put(idCart, new OrderIn(cart,System.currentTimeMillis()));
-                    ObjRef ref = new ObjRef(address, idCart, "cart");
+                    ObjRef ref = new ObjRef(addressStore, idCart, "cart");
                     return Futures.completedFuture(new StoreMakeCartRep(ref));
                 });
                 c.handler(CartAddReq.class, (m) -> {
@@ -141,6 +140,39 @@ public class DistributedObjects {
     }
 
     public void initialize_bank() {
+        clique = new Clique(t, Clique.Mode.ANY, 1, addresses);
+
+        tc.execute(() -> {
+            //t.server().listen(new Address(":20000"), (c) -> {
+
+            clique.handler(BankSearchReq.class, (j, m) -> {
+                OrderIn oI = objs.get(m.id);
+                oI.updateTimestamp(System.currentTimeMillis());
+                Bank x = (Bank) oI.obj;
+                Account a = x.search(m.iban);
+                int id_account = id.incrementAndGet();
+                objs.put(id_account, new OrderIn(a, System.currentTimeMillis()));
+                ObjRef ref = new ObjRef(addressBank, id_account, "account");
+                return Futures.completedFuture(new BankSearchRep(ref));
+            });
+
+            clique.handler(BankTxnReq.class, (j, m) -> {
+                OrderIn oIAccount = objs.get(m.accountid);
+                oIAccount.updateTimestamp(System.currentTimeMillis());
+                Account a = (Account) oIAccount.obj;
+                boolean res = a.buy(m.price);
+                objs.remove(m.accountid);
+                return Futures.completedFuture(new BankTxnRep(res));
+            });
+
+            clique.open().thenRun(() -> System.out.println("open"));
+            //});
+        }).join();
+
+
+
+
+        /*
         tc.execute(() -> {
             t.server().listen(new Address(":20000"), (c) -> {
                 c.handler(BankSearchReq.class, (m) -> {
@@ -150,7 +182,7 @@ public class DistributedObjects {
                     Account a = x.search(m.iban);
                     int id_account = id.incrementAndGet();
                     objs.put(id_account, new OrderIn(a, System.currentTimeMillis()));
-                    ObjRef ref = new ObjRef(address, id_account, "account");
+                    ObjRef ref = new ObjRef(addressBank, id_account, "account");
                     return Futures.completedFuture(new BankSearchRep(ref));
                 });
                 c.handler(BankTxnReq.class, (m) -> {
@@ -163,6 +195,7 @@ public class DistributedObjects {
                 });
             });
         });
+        */
     }
 
 
@@ -171,16 +204,16 @@ public class DistributedObjects {
         objs.put(id.incrementAndGet(), new OrderIn(o, System.currentTimeMillis()));
 
         if(o instanceof Store)
-            return new ObjRef(address, id.get(), "store");
+            return new ObjRef(addressStore, id.get(), "store");
         else if(o instanceof Book)
-            return new ObjRef(address, id.get(), "book");
+            return new ObjRef(addressStore, id.get(), "book");
         else if(o instanceof Cart)
-            return new ObjRef(address, id.get(), "cart");
+            return new ObjRef(addressStore, id.get(), "cart");
 
         else if(o instanceof Bank)
-            return new ObjRef(address, id.get(), "bank");
+            return new ObjRef(addressBank, id.get(), "bank");
         else if(o instanceof Account)
-            return new ObjRef(address, id.get(), "account");
+            return new ObjRef(addressBank, id.get(), "account");
 
         return null;
     }
@@ -188,9 +221,16 @@ public class DistributedObjects {
     public Object importObj(ObjRef o){
 
         if(o.cls.equals("store"))
-            return new RemoteStore(tc, t, address);
-        if(o.cls.equals("bank"))
-            return new RemoteBank(tc, t, address);
+            return new RemoteStore(tc, t, addressStore);
+        if(o.cls.equals("bank")){
+            clique = new Clique(t, Clique.Mode.ANY, 0, addresses);
+
+            tc.execute(() -> {
+                clique.open().thenRun(() -> System.out.println("open"));
+            }).join();
+
+            return new RemoteBank(tc, clique);
+        }
 
         return null;
     }

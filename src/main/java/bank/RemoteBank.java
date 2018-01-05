@@ -3,30 +3,20 @@ package bank;
 import bank.requests.*;
 import mudar.Util;
 import io.atomix.catalyst.concurrent.SingleThreadContext;
-import io.atomix.catalyst.transport.Address;
-import io.atomix.catalyst.transport.Connection;
-import io.atomix.catalyst.transport.Transport;
+import pt.haslab.ekit.Clique;
 
 import java.util.concurrent.ExecutionException;
 
 public class RemoteBank implements Bank {
+
     private final SingleThreadContext tc;
-    private final Connection c;
-    private final Address address;
+    private final Clique clique;
     private int id;
 
-    public RemoteBank(SingleThreadContext tc, Transport t, Address address) {
+    public RemoteBank(SingleThreadContext tc, Clique clique) {
         this.tc = tc;
-        this.address = address;
-        Connection connection = null;
-        try {
-            connection = tc.execute(() ->
-                    t.client().connect(address)
-            ).join().get();
-        } catch(InterruptedException|ExecutionException e) {
-            e.printStackTrace();
-        }
-        c = connection;
+        this.clique = clique;
+
         id = 1; //TODO
     }
 
@@ -35,11 +25,11 @@ public class RemoteBank implements Bank {
         BankSearchRep r = null;
         try {
             r = (BankSearchRep) tc.execute(() ->
-                    c.sendAndReceive(new BankSearchReq(iban, id))
+                    clique.sendAndReceive(1, new BankSearchReq(iban, id))
             ).join().get();
         } catch (InterruptedException|ExecutionException e) {
             e.printStackTrace();
         }
-        return (Account) Util.makeRemote(tc, r.ref, 1, null);
+        return (Account) Util.makeRemote(tc, r.ref, 1, null, clique);
     }
 }
