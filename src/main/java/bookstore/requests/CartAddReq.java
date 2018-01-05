@@ -11,7 +11,7 @@ public class CartAddReq implements CatalystSerializable {
     public int txid;
 
     public CartAddReq() {}
-    public CartAddReq(int cartid, int bookid, int txid) {
+    public CartAddReq(int bookid, int cartid, int txid) {
         this.cartid = cartid;
         this.bookid = bookid;
         this.txid = txid;

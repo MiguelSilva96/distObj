@@ -19,9 +19,11 @@ public class Client {
         int txid = distObj.beginTransaction();
         Cart cart = store.newCart(txid);
         Book book = store.search("one", txid);
+        cart.add(book, txid);
+        boolean res = cart.buy(txid);
         boolean result = distObj.commitTransaction(txid);
         if(result)
-            System.out.println(book.getAuthor());
+            System.out.println("Comprou = "+res);
     }
 
 }

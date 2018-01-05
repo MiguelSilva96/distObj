@@ -20,7 +20,7 @@ public class TwoPl {
     public CompletableFuture<Acquired> lock(Object o){
         CompletableFuture<Acquired> compF = new CompletableFuture<>();
         if(!lockMap.containsKey(o)) {
-            PriorityQueue<LockWait> pq= new PriorityQueue<>();
+            PriorityQueue<LockWait> pq = new PriorityQueue<>();
             lockMap.put(o, pq);
             CompletableFuture<Release> compRel = new CompletableFuture<>();
             Acquired aq = new Acquired(compRel);

@@ -11,6 +11,7 @@ import bookstore.requests.*;
 import pt.haslab.ekit.Clique;
 import twopc.Coordinator;
 import twopc.requests.*;
+import bookstore.StoreImpl.CartImpl;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -115,9 +116,15 @@ public class DistributedObjects {
                     return Futures.completedFuture(new CartAddRep());
                 });
                 c.handler(CartBuyReq.class, (m) -> {
-                    Cart cart = (Cart) objs.get(m.cartid);
-                    boolean res = cart.buy(m.txid);
-                    return Futures.completedFuture(new CartBuyRep(res));
+                    CartImpl cart = (CartImpl) objs.get(m.cartid);
+                    cart.buy(m.txid);
+                    CompletableFuture<Object> cf = cart.getCf(m.txid);
+                    CompletableFuture<CartBuyRep> rep = new CompletableFuture<>();
+                    cf.thenAccept((s) -> {
+                        cart.removeCf(m.txid);
+                        rep.complete(new CartBuyRep((Boolean) s));
+                    });
+                    return rep;
                 });
                 c.handler(BookInfoReq.class, (m) -> {
                     Book book = (Book) objs.get(m.bookid);

@@ -23,7 +23,11 @@ public class Transaction {
     }
 
     public void addParticipant(int participant) {
-        participants.add(participant);
+        boolean exists = false;
+        for(Integer i : participants)
+            if(i == participant) exists = true;
+        if(!exists)
+            participants.add(participant);
     }
 
     public void firstPhase(CompletableFuture<Object> completedCommit, int txid) {

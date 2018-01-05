@@ -7,6 +7,9 @@ import pt.haslab.ekit.Clique;
 import pt.haslab.ekit.Log;
 import twopc.Participant;
 import twopc.requests.*;
+import twopl.Acquired;
+import twopl.Release;
+import twopl.TwoPl;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -21,6 +24,7 @@ public class StoreImpl implements Store {
     private Log log;
     private Clique clique;
     private int coordId;
+    private TwoPl twoPl;
     // only to guarantee we only reply to client when coord responds
     private Map<Integer, CompletableFuture<Object>> completablesForResp;
 
@@ -31,6 +35,7 @@ public class StoreImpl implements Store {
                 new BookImpl(2, "other", "someother")));
         log = new Log("store1");
         history = new ArrayList<>();
+        twoPl = new TwoPl();
         currentTransactions = new HashMap<>();
         completablesForResp = new HashMap<>();
     }
@@ -101,6 +106,7 @@ public class StoreImpl implements Store {
         completablesForResp.remove(txid);
     }
 
+
     public Book search(String title, int txid) {
         Transaction t = currentTransactions.get(txid);
         CompletableFuture<Object> cf = new CompletableFuture<>();
@@ -132,43 +138,71 @@ public class StoreImpl implements Store {
 
     public class CartImpl implements Cart {
         private List<Book> content;
+        private Map<Integer, Boolean> doing;
+
+        public CartImpl() {
+            content = new ArrayList<>();
+            doing = new HashMap<>();
+        }
 
         public void add(Book b, int txid) {
             content.add(b);
         }
 
+        private CompletableFuture<?> treatBook(int txid, int c) {
+            int i = -1;
+            Stock st;
+            Book anterior = new BookImpl(-1,
+                            "fake", "fake");
+            CompletableFuture<String> res = new CompletableFuture<>();
+            for(Book b : content) {
+                i++;
+                if (i == c) {
+                    st = books.get(b.getIsbn());
+                    if (i > 0)
+                        if (books.get(anterior.getIsbn()).nBooks == 0) {
+                            doing.put(txid, false);
+                        }
+                    return twoPl.lock(st);
+                }
+                anterior = b;
+            }
+            return res;
+        }
+
+        private void auxBuy(CompletableFuture<?> res, int txid, int c) {
+            if(c == content.size()) {
+                boolean r = true;
+                if(doing.get(txid) != null) {
+                    r = false; doing.remove(txid);
+                }
+                completablesForResp.get(txid).complete(r);
+                return;
+            }
+            auxBuy(res.thenCompose((s) -> treatBook(txid, c)), txid, c + 1);
+        }
+
+        public CompletableFuture<Object> getCf(int txid) {
+            CompletableFuture<Object> res = completablesForResp.get(txid);
+            return res;
+        }
+
+        public void removeCf(int txid) {
+            completablesForResp.remove(txid);
+        }
+
         public boolean buy(int txid) {
             Transaction t = currentTransactions.get(txid);
             CompletableFuture<Object> cf = new CompletableFuture<>();
-            boolean newTransaction = false;
+            completablesForResp.put(txid, cf);
             if(t == null) {
                 t = new Transaction(txid);
                 currentTransactions.put(txid, t);
-                newTransaction = true;
             }
-            int nOk = 0;
-            Map<Integer, Stock> temp = books;
-            for (Book b : content) {
-                for (Stock s : books.values()) {
-                    if (s.book.equals(b) && s.nBooks > 0) {
-                        nOk++;
-                        t.beforeCommit.add(s.clone());
-                        s.nBooks--;
-                        break;
-                    }
-                }
-            }
-            if(newTransaction == true) {
-                completablesForResp.put(txid, cf);
-                clique.sendAndReceive(coordId, new NewParticipant(txid))
-                        .thenAccept(s -> {cf.complete(s);});
-            }
-            if (nOk == content.size())
-                return true;
-            else {
-                books = temp;
-                return true;
-            }
+            auxBuy(clique.sendAndReceive(coordId, new NewParticipant(txid)),
+                    txid, 0);
+            //this return does not matter
+            return false;
         }
 
     }
@@ -191,6 +225,7 @@ public class StoreImpl implements Store {
         List<Object> beforeCommit;
         boolean voted;
         int txid;
+        List<CompletableFuture<Release>> locks;
 
         public Transaction(int txid) {
             beforeCommit = new ArrayList<>();

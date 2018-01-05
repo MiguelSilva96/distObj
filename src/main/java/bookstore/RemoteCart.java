@@ -24,7 +24,7 @@ public class RemoteCart implements Cart {
         Transport t = new NettyTransport();
         try {
             c = tc.execute(() ->
-                    t.client().connect(address)
+                    t.client().connect(new Address("localhost:10000"))
             ).join().get();
         } catch (InterruptedException|ExecutionException e) {
             e.printStackTrace();
