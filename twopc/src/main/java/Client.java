@@ -38,19 +38,6 @@ public class Client {
             connection = tc.execute(() ->
                     t.client().connect(coordAddr)
             ).join().get();
-            tc.execute(() -> {
-               connection.handler(Commit.class, (c) -> {
-                   System.out.println("Transaction commit");
-               });
-               connection.handler(Rollback.class, (c) -> {
-                   System.out.println("Transaction rollback");
-               });
-            });
-            // BEGIN
-            BeginRep rep = (BeginRep) tc.execute(() ->
-                    connection.sendAndReceive(new Begin())
-            ).join().get();
-            int txid = rep.getTxid();
             connection1 = tc.execute(() ->
                     t.client().connect(res1)
             ).join().get();
@@ -58,21 +45,33 @@ public class Client {
                     t.client().connect(res2)
             ).join().get();
 
-            tc.execute(() -> {
-               connection1.handler(String.class, (s) -> {
-                   //access second resource
-                   connection2.send(txid);
-               });
-               connection2.handler(String.class, (s) -> {
-                   //commit
-                   connection.send(new StartCommit(txid));
-               });
-            });
+            // BEGIN
+            BeginRep rep = (BeginRep) tc.execute(() ->
+                    connection.sendAndReceive(new Begin())
+            ).join().get();
+
+            int txid = rep.getTxid();
 
             // SIMULATE ACCESS TO ONE RESOURCE
-            tc.execute(() ->
-                    connection1.send(txid)
-            );
+            String s = (String) tc.execute(() ->
+                    connection1.sendAndReceive(txid)
+            ).join().get();
+            // SIMULATE ACCESS TO SECOND RESOURCE
+            String s2 = (String) tc.execute(() ->
+                    connection2.sendAndReceive(txid)
+            ).join().get();
+
+            //COMMIT
+            Object o = tc.execute(() ->
+                    connection.sendAndReceive(new StartCommit(txid))
+            ).join().get();
+
+            if(o instanceof Rollback) {
+                System.out.println("rollback");
+            }
+            if(o instanceof Commit) {
+                System.out.println("commit");
+            }
 
         } catch (InterruptedException|ExecutionException e) {
             e.printStackTrace();

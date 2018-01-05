@@ -1,8 +1,9 @@
 
+
 import io.atomix.catalyst.concurrent.Futures;
 import io.atomix.catalyst.concurrent.ThreadContext;
 import io.atomix.catalyst.transport.Address;
-import io.atomix.catalyst.transport.Connection;
+
 import io.atomix.catalyst.transport.Transport;
 import io.atomix.catalyst.transport.netty.NettyTransport;
 import pt.haslab.ekit.Clique;
@@ -12,6 +13,7 @@ import requests.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 public class Coordinator {
     private Log log;
@@ -45,18 +47,19 @@ public class Coordinator {
                         curId = txid;
                         rep = new BeginRep(txid++);
                     }
-                    transactions.put(curId, new Transaction(clique, c));
+                    transactions.put(curId, new Transaction(clique));
                     log.append(rep);
                     return Futures.completedFuture(rep);
                 });
                 c.handler(StartCommit.class, (m) -> {
                     Transaction tr = transactions.get(m.getTxid());
-                    tr.firstPhase();
-                    Connection cl = tr.getClient();
+                    CompletableFuture<Object> compFuture = new CompletableFuture<>();
+                    tr.firstPhase(compFuture);
                     List<Integer> part = tr.getParticipants();
-                    TransactInfo tinf = new TransactInfo(m.getTxid(), cl, part);
+                    TransactInfo tinf = new TransactInfo(m.getTxid(), part);
                     StartCommit scLog = new StartCommit(tinf);
                     log.append(scLog);
+                    return compFuture;
                 });
             });
         });
@@ -66,9 +69,8 @@ public class Coordinator {
         tc.execute(() -> {
             log.handler(Begin.class, (i, b) -> {
                 TransactInfo ti = b.getTransactInfo();
-                Connection cl = ti.getClient();
                 int txid = ti.getTxid();
-                transactions.put(txid, new Transaction(clique, cl));
+                transactions.put(txid, new Transaction(clique));
             });
             log.handler(NewParticipant.class, (i, n) -> {
                 Transaction t = transactions.get(n.getTxid());
@@ -93,7 +95,8 @@ public class Coordinator {
                     int phase = v.getPhase();
                     if(phase == 1)
                         // restart first phase
-                        v.firstPhase();
+                        //NOT GOOD
+                        v.firstPhase(new CompletableFuture<>());
                     else if(phase == 0)
                         // send abort to all the resources involved
                         v.abort(k);

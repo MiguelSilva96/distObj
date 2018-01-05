@@ -9,6 +9,7 @@ import pt.haslab.ekit.Log;
 import requests.*;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 public class Participant {
     private Log log;
@@ -34,8 +35,10 @@ public class Participant {
                 c.handler(Integer.class, (m) -> {
                     currentTx = m;
                     System.out.println("Received from client");
+                    CompletableFuture<String> rec = new CompletableFuture<>();
                     clique.sendAndReceive(coordId, new NewParticipant(m))
-                        .thenAccept(s -> c.send(s));
+                        .thenAccept(s -> rec.complete((String)s));
+                    return rec;
                 });
             });
         });

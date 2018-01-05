@@ -12,13 +12,11 @@ import java.util.List;
 
 public class TransactInfo implements CatalystSerializable {
     private int txid;
-    private Connection client;
     private List<Integer> participants;
 
     public TransactInfo() {}
-    public TransactInfo(int txid, Connection client, List<Integer> participants) {
+    public TransactInfo(int txid, List<Integer> participants) {
         this.txid = txid;
-        this.client = client;
         this.participants = participants;
     }
 
@@ -26,9 +24,6 @@ public class TransactInfo implements CatalystSerializable {
         return txid;
     }
 
-    public Connection getClient() {
-        return client;
-    }
 
     public List<Integer> getParticipants() {
         return participants;
@@ -37,7 +32,6 @@ public class TransactInfo implements CatalystSerializable {
     @Override
     public void writeObject(BufferOutput<?> bufferOutput, Serializer serializer) {
         bufferOutput.writeInt(txid);
-        serializer.writeObject(client, bufferOutput);
         bufferOutput.writeInt(participants.size());
         for(Integer i : participants)
             bufferOutput.writeInt(i);
@@ -46,7 +40,6 @@ public class TransactInfo implements CatalystSerializable {
     @Override
     public void readObject(BufferInput<?> bufferInput, Serializer serializer) {
         txid = bufferInput.readInt();
-        client = serializer.readObject(bufferInput);
         int size = bufferInput.readInt();
         participants = new ArrayList<>();
         for(int i = 0; i < size; i++)
