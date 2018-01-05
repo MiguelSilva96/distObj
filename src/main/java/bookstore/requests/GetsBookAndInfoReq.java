@@ -16,7 +16,6 @@ public class GetsBookAndInfoReq implements CatalystSerializable{
         this.storeId = storeId;
         this.title = title;
         this.infoReq = infoReq;
-
     }
 
     @Override

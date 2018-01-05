@@ -1,4 +1,9 @@
-package bookstore;
+package mudar;
+
+import bank.*;
+import bank.requests.*;
+import bookstore.*;
+import bookstore.requests.*;
 
 import io.atomix.catalyst.concurrent.Futures;
 import io.atomix.catalyst.concurrent.SingleThreadContext;
@@ -6,16 +11,13 @@ import io.atomix.catalyst.serializer.Serializer;
 import io.atomix.catalyst.transport.Address;
 import io.atomix.catalyst.transport.Transport;
 import io.atomix.catalyst.transport.netty.NettyTransport;
-import bookstore.requests.*;
 
-import java.sql.Time;
-import java.sql.Timestamp;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class DistributedObjects {
 
-    Map<Integer, OrderIn> objs;
+    public Map<Integer, OrderIn> objs;
     AtomicInteger id;
     SingleThreadContext tc;
     Transport t;
@@ -28,9 +30,17 @@ public class DistributedObjects {
         t  = new NettyTransport();
         address = new Address("localhost:10000");
         register();
-        new MonitorObjs().start();
+        new MonitorObjs(objs).start();
+    }
 
-
+    public DistributedObjects(Address address) {
+        objs = new HashMap<>();
+        id = new AtomicInteger(0);
+        tc = new SingleThreadContext("srv-%d", new Serializer());
+        t  = new NettyTransport();
+        this.address = address;
+        register();
+        new MonitorObjs(objs).start();
     }
 
     public void register() {
@@ -44,8 +54,14 @@ public class DistributedObjects {
         tc.serializer().register(StoreMakeCartRep.class);
         tc.serializer().register(BookInfoReq.class);
         tc.serializer().register(BookInfoRep.class);
-        tc.serializer().register(ObjRef.class);
         tc.serializer().register(GetsBookAndInfoReq.class);
+
+        tc.serializer().register(BankSearchReq.class);
+        tc.serializer().register(BankSearchRep.class);
+        tc.serializer().register(BankTxnReq.class);
+        tc.serializer().register(BankTxnRep.class);
+
+        tc.serializer().register(ObjRef.class);
     }
 
     public void initialize() {
@@ -124,6 +140,32 @@ public class DistributedObjects {
         });
     }
 
+    public void initialize_bank() {
+        tc.execute(() -> {
+            t.server().listen(new Address(":10003"), (c) -> {
+                c.handler(BankSearchReq.class, (m) -> {
+                    OrderIn oI = objs.get(m.id);
+                    oI.updateTimestamp(System.currentTimeMillis());
+                    Bank x = (Bank) oI.obj;
+                    Account a = x.search(m.iban);
+                    int id_account = id.incrementAndGet();
+                    objs.put(id_account, new OrderIn(a, System.currentTimeMillis()));
+                    ObjRef ref = new ObjRef(address, id_account, "account");
+                    return Futures.completedFuture(new BankSearchRep(ref));
+                });
+                c.handler(BankTxnReq.class, (m) -> {
+                    OrderIn oIAccount = objs.get(m.accountid);
+                    oIAccount.updateTimestamp(System.currentTimeMillis());
+                    Account a = (Account) oIAccount;
+                    boolean res = a.buy(m.price);
+                    objs.remove(m.accountid);
+                    return Futures.completedFuture(new BankTxnRep(res));
+                });
+            });
+        });
+    }
+
+
     public ObjRef exportObj(Object o){
 
         objs.put(id.incrementAndGet(), new OrderIn(o, System.currentTimeMillis()));
@@ -135,6 +177,11 @@ public class DistributedObjects {
         else if(o instanceof Cart)
             return new ObjRef(address, id.get(), "cart");
 
+        else if(o instanceof Bank)
+            return new ObjRef(address, id.get(), "bank");
+        else if(o instanceof Account)
+            return new ObjRef(address, id.get(), "account");
+
         return null;
     }
 
@@ -142,6 +189,9 @@ public class DistributedObjects {
 
         if(o.cls.equals("store"))
             return new RemoteStore(tc, t, address);
+        if(o.cls.equals("bank"))
+            return new RemoteBank(tc, t, address);
+
         return null;
     }
 
@@ -149,9 +199,14 @@ public class DistributedObjects {
 
 
 class MonitorObjs extends Thread {
-    private DistributedObjects disObj;
-    public MonitorObjs (){
-        this.disObj = new DistributedObjects();
+
+    private Map<Integer, OrderIn> objs;
+
+    private Iterator<Map.Entry<Integer, OrderIn>> it;
+    private Map.Entry<Integer, OrderIn> entry;
+
+    public MonitorObjs (Map<Integer, OrderIn> objs){
+        this.objs = objs;
     }
 
     @Override
@@ -162,17 +217,25 @@ class MonitorObjs extends Thread {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            Map<Integer, OrderIn> mapObjs = disObj.objs;
-            for(Map.Entry<Integer,OrderIn> entry : mapObjs.entrySet()){
+
+            System.out.println(objs.size());
+
+            it = objs.entrySet().iterator();
+
+            while (it.hasNext()) {
+                entry = it.next();
                 long diffTime = Long.MAX_VALUE;
+
                 if(entry.getValue().obj instanceof Book)
                     diffTime = 100000;
                 else if(entry.getValue().obj instanceof Cart)
                     diffTime = 15000;
-                if(System.currentTimeMillis() - entry.getValue().timeIn >= diffTime)
-                    mapObjs.remove(entry.getKey());
+
+                if(System.currentTimeMillis() - entry.getValue().timeIn >= diffTime){
+                    System.out.println("vais embora");
+                    it.remove();
                 }
-            disObj.objs = mapObjs;
+            }
         }
     }
 }

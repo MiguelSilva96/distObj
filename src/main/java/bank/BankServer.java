@@ -1,14 +1,15 @@
-package bookstore;
+package bank;
 
 import mudar.DistributedObjects;
 
-public class Server {
+public class BankServer {
     public static void main(String[] args) throws Exception {
 
         DistributedObjects distObj = new DistributedObjects();
-        distObj.initialize();
-        StoreImpl store = new StoreImpl();
-        distObj.exportObj(store);
-
+        distObj.initialize_bank();
+        BankImpl bank = new BankImpl();
+        distObj.exportObj(bank);
     }
 }
+
+

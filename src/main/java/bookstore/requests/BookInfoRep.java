@@ -10,6 +10,7 @@ public class BookInfoRep implements CatalystSerializable {
     public String titAuth;
 
     public BookInfoRep() {}
+
     public BookInfoRep(int isbn, String titAuth) {
         this.isbn = isbn;
         this.titAuth = titAuth;

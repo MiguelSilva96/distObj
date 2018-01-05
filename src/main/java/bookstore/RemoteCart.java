@@ -1,14 +1,19 @@
 package bookstore;
 
+import bank.Account;
+import bank.Bank;
 import bookstore.requests.CartBuyRep;
 import bookstore.requests.CartBuyReq;
 import io.atomix.catalyst.concurrent.SingleThreadContext;
+import io.atomix.catalyst.serializer.Serializer;
 import io.atomix.catalyst.transport.Address;
 import io.atomix.catalyst.transport.Connection;
 import io.atomix.catalyst.transport.Transport;
 import io.atomix.catalyst.transport.netty.NettyTransport;
 import bookstore.requests.CartAddRep;
 import bookstore.requests.CartAddReq;
+import mudar.DistributedObjects;
+import mudar.ObjRef;
 
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -37,14 +42,18 @@ public class RemoteCart implements Cart {
 
     public boolean buy() {
         CartBuyRep r = null;
-        try{
-            r = (CartBuyRep) tc.execute(()->
+
+        try {
+            r = (CartBuyRep) tc.execute(() ->
                     c.sendAndReceive(new CartBuyReq(id))
             ).join().get();
-        }catch (InterruptedException|ExecutionException e){
+        } catch (InterruptedException|ExecutionException e){
             e.printStackTrace();
         }
-        return r.result;
+        System.out.println("ola");
+
+        if(r.result == false) return false;
+        else return send2bank();
     }
 
     public void add(Book b) {
@@ -56,5 +65,16 @@ public class RemoteCart implements Cart {
         } catch (InterruptedException|ExecutionException e) {
             e.printStackTrace();
         }
+    }
+
+    private boolean send2bank() {
+        Address bank_address = new Address("localhost", 10003);
+
+        DistributedObjects distObj = new DistributedObjects(bank_address);
+        Bank bank = (Bank) distObj.importObj(new ObjRef(bank_address, 1, "bank"));
+        Account account = bank.search("PT12345");
+        boolean res = account.buy(100);
+        System.out.println("resposta do banco: " + res);
+        return res;
     }
 }

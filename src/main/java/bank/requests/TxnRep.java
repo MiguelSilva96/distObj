@@ -1,25 +1,26 @@
-package bookstore.requests;
+package bank.requests;
 
 import io.atomix.catalyst.buffer.BufferInput;
 import io.atomix.catalyst.buffer.BufferOutput;
 import io.atomix.catalyst.serializer.CatalystSerializable;
 import io.atomix.catalyst.serializer.Serializer;
 
-public class StoreMakeCartReq implements CatalystSerializable {
+public class TxnRep implements CatalystSerializable {
+    public boolean result;
 
-	public int id;
+    public TxnRep() {}
 
-	public StoreMakeCartReq() {}
-
-	public StoreMakeCartReq(int id) { this.id = id; }
+    public TxnRep(boolean result) {
+        this.result = result;
+    }
 
     @Override
     public void writeObject(BufferOutput<?> bufferOutput, Serializer serializer) {
-    	bufferOutput.writeInt(id);
+        bufferOutput.writeBoolean(result);
     }
 
     @Override
     public void readObject(BufferInput<?> bufferInput, Serializer serializer) {
-    	id = bufferInput.readInt();
+        result = bufferInput.readBoolean();
     }
 }

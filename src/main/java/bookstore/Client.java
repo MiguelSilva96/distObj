@@ -1,12 +1,8 @@
 package bookstore;
 
-import io.atomix.catalyst.concurrent.SingleThreadContext;
-import io.atomix.catalyst.concurrent.ThreadContext;
-import io.atomix.catalyst.serializer.Serializer;
 import io.atomix.catalyst.transport.Address;
-import io.atomix.catalyst.transport.Connection;
-import io.atomix.catalyst.transport.Transport;
-import io.atomix.catalyst.transport.netty.NettyTransport;
+import mudar.DistributedObjects;
+import mudar.ObjRef;
 
 public class Client {
     public static void main(String[] args) throws Exception {
@@ -18,6 +14,7 @@ public class Client {
         store = (Store) distObj.importObj(new ObjRef(addr, 1, "store"));
         Cart cart = store.newCart();
         Book book = store.search("one");
+        System.out.println(cart.buy());
         System.out.println(book.getAuthor());
     }
 

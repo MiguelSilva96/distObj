@@ -10,7 +10,9 @@ public class BookInfoReq implements CatalystSerializable {
     public int bookid;
     public int infoReq;
     //infoReq = 0 --> isbn  infoReq = 1 --> title   infoReq = 2 --> Author;
+
     public BookInfoReq() {}
+
     public BookInfoReq(int storeid, int bookid, int infoReq) {
         this.storeid = storeid;
         this.bookid = bookid;

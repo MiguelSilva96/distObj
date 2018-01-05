@@ -1,25 +1,27 @@
-package bookstore.requests;
+package bank.requests;
 
+import mudar.ObjRef;
 import io.atomix.catalyst.buffer.BufferInput;
 import io.atomix.catalyst.buffer.BufferOutput;
 import io.atomix.catalyst.serializer.CatalystSerializable;
 import io.atomix.catalyst.serializer.Serializer;
 
-public class StoreMakeCartReq implements CatalystSerializable {
+public class BankSearchRep implements CatalystSerializable {
+    public ObjRef ref;
 
-	public int id;
+    public BankSearchRep() {}
 
-	public StoreMakeCartReq() {}
-
-	public StoreMakeCartReq(int id) { this.id = id; }
+    public BankSearchRep(ObjRef ref) {
+        this.ref = ref;
+    }
 
     @Override
     public void writeObject(BufferOutput<?> bufferOutput, Serializer serializer) {
-    	bufferOutput.writeInt(id);
+        serializer.writeObject(ref, bufferOutput);
     }
 
     @Override
     public void readObject(BufferInput<?> bufferInput, Serializer serializer) {
-    	id = bufferInput.readInt();
+        ref = serializer.readObject(bufferInput);
     }
 }

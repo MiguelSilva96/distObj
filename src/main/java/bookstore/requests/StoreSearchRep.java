@@ -1,6 +1,6 @@
 package bookstore.requests;
 
-import bookstore.ObjRef;
+import mudar.ObjRef;
 import io.atomix.catalyst.buffer.BufferInput;
 import io.atomix.catalyst.buffer.BufferOutput;
 import io.atomix.catalyst.serializer.CatalystSerializable;
@@ -10,6 +10,7 @@ public class StoreSearchRep implements CatalystSerializable {
     public ObjRef ref;
 
     public StoreSearchRep() {}
+
     public StoreSearchRep(ObjRef ref) {
         this.ref = ref;
     }

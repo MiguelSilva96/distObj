@@ -8,7 +8,7 @@ import io.atomix.catalyst.serializer.Serializer;
 public class CartBuyReq implements CatalystSerializable{
     public int cartid;
 
-    public CartBuyReq() { }
+    public CartBuyReq() {}
 
     public CartBuyReq(int cartid) {
         this.cartid = cartid;

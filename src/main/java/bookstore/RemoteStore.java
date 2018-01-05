@@ -1,7 +1,6 @@
 package bookstore;
 
 import io.atomix.catalyst.concurrent.SingleThreadContext;
-import io.atomix.catalyst.serializer.Serializer;
 import io.atomix.catalyst.transport.Address;
 import io.atomix.catalyst.transport.Connection;
 import io.atomix.catalyst.transport.Transport;
@@ -10,6 +9,7 @@ import bookstore.requests.StoreMakeCartRep;
 import bookstore.requests.StoreMakeCartReq;
 import bookstore.requests.StoreSearchRep;
 import bookstore.requests.StoreSearchReq;
+import mudar.Util;
 
 import java.util.concurrent.ExecutionException;
 
@@ -43,7 +43,7 @@ public class RemoteStore implements Store {
         StoreSearchRep r = null;
         try {
             r = (StoreSearchRep) tc.execute(() ->
-                    c.sendAndReceive(new StoreSearchReq("one", id))
+                    c.sendAndReceive(new StoreSearchReq(title, id))
             ).join().get();
         } catch (InterruptedException|ExecutionException e) {
             e.printStackTrace();

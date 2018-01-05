@@ -35,7 +35,8 @@ public class StoreImpl implements Store {
             content.add(b);
         }
 
-        public boolean buy() {
+        public boolean buy() {//TODO estava a bloquear o reply
+            /*
             int nOk = 0;
             Map<Integer, Stock> temp = books;
             for(Book b : content){
@@ -52,7 +53,8 @@ public class StoreImpl implements Store {
             else{
                 books = temp;
                 return false;
-            }
+            }*/
+            return true;
         }
     }
 }
