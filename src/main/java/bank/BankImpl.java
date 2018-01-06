@@ -1,16 +1,11 @@
 package bank;
 
-import bookstore.DistributedObjects;
-import bookstore.StoreImpl;
-import io.atomix.catalyst.transport.Address;
 import pt.haslab.ekit.Clique;
 import pt.haslab.ekit.Log;
-import twopc.Participant;
 import twopc.requests.*;
 import twopl.Acquired;
 import twopl.Release;
 import twopl.TwoPl;
-import utilities.ObjRef;
 
 import java.util.ArrayList;
 import java.util.HashMap;

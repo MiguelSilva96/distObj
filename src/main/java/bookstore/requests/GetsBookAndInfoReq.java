@@ -1,34 +1,34 @@
 package bookstore.requests;
+
 import io.atomix.catalyst.buffer.BufferInput;
 import io.atomix.catalyst.buffer.BufferOutput;
 import io.atomix.catalyst.serializer.CatalystSerializable;
 import io.atomix.catalyst.serializer.Serializer;
 
-public class BookInfoReq implements CatalystSerializable {
-    public int storeid;
-    public int bookid;
-    public int infoReq;
-    //infoReq = 0 --> isbn  infoReq = 1 --> title   infoReq = 2 --> Author;
+public class GetsBookAndInfoReq implements CatalystSerializable{
+    public int storeId;
+    public String title;
+    public int infoReq; // info type needed
 
-    public BookInfoReq() {}
+    public GetsBookAndInfoReq(){}
 
-    public BookInfoReq(int storeid, int bookid, int infoReq) {
-        this.storeid = storeid;
-        this.bookid = bookid;
+    public GetsBookAndInfoReq(int storeId, String title, int infoReq){
+        this.storeId = storeId;
+        this.title = title;
         this.infoReq = infoReq;
     }
 
     @Override
     public void writeObject(BufferOutput<?> bufferOutput, Serializer serializer) {
-        bufferOutput.writeInt(storeid);
-        bufferOutput.writeInt(bookid);
+        bufferOutput.writeInt(storeId);
+        bufferOutput.writeString(title);
         bufferOutput.writeInt(infoReq);
     }
 
     @Override
     public void readObject(BufferInput<?> bufferInput, Serializer serializer) {
-        storeid = bufferInput.readInt();
-        bookid = bufferInput.readInt();
+        storeId = bufferInput.readInt();
+        title = bufferInput.readString();
         infoReq = bufferInput.readInt();
     }
 }
