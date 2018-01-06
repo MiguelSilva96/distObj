@@ -1,4 +1,4 @@
-package bookstore.requests;
+package bank.requests;
 
 import utilities.ObjRef;
 import io.atomix.catalyst.buffer.BufferInput;
@@ -6,11 +6,12 @@ import io.atomix.catalyst.buffer.BufferOutput;
 import io.atomix.catalyst.serializer.CatalystSerializable;
 import io.atomix.catalyst.serializer.Serializer;
 
-public class StoreSearchRep implements CatalystSerializable {
+public class BankSearchRep implements CatalystSerializable {
     public ObjRef ref;
 
-    public StoreSearchRep() {}
-    public StoreSearchRep(ObjRef ref) {
+    public BankSearchRep() {}
+
+    public BankSearchRep(ObjRef ref) {
         this.ref = ref;
     }
 

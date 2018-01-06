@@ -1,5 +1,12 @@
 package bookstore;
 
+import bank.Account;
+import bank.Bank;
+import bank.RemoteBank;
+import bank.requests.BankSearchRep;
+import bank.requests.BankSearchReq;
+import bank.requests.BankTxnRep;
+import bank.requests.BankTxnReq;
 import io.atomix.catalyst.concurrent.Futures;
 import io.atomix.catalyst.concurrent.SingleThreadContext;
 import io.atomix.catalyst.serializer.Serializer;
@@ -12,6 +19,7 @@ import pt.haslab.ekit.Clique;
 import twopc.Coordinator;
 import twopc.requests.*;
 import bookstore.StoreImpl.CartImpl;
+import utilities.ObjRef;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -35,7 +43,9 @@ public class DistributedObjects {
         tc = new SingleThreadContext("srv-%d", new Serializer());
         t  = new NettyTransport();
         addressStore = new Address("localhost:10000");
+        addressBank  = new Address("localhost:20000");
         addressCoord = new Address("localhost:12348");
+
 
         //addresses for clique
         addresses = new Address[] {
@@ -56,7 +66,14 @@ public class DistributedObjects {
         tc.serializer().register(StoreMakeCartRep.class);
         tc.serializer().register(BookInfoReq.class);
         tc.serializer().register(BookInfoRep.class);
+
+        tc.serializer().register(BankSearchReq.class);
+        tc.serializer().register(BankSearchRep.class);
+        tc.serializer().register(BankTxnReq.class);
+        tc.serializer().register(BankTxnRep.class);
+
         tc.serializer().register(ObjRef.class);
+
         tc.serializer().register(Prepare.class);
         tc.serializer().register(Commit.class);
         tc.serializer().register(Rollback.class);
@@ -138,6 +155,31 @@ public class DistributedObjects {
         });
     }
 
+    public void initialize_bank() {
+        clique = new Clique(t, Clique.Mode.ANY, 1, addresses);
+
+        tc.execute(() -> {
+
+            clique.handler(BankSearchReq.class, (j, m) -> {
+                Bank x = (Bank) objs.get(m.id);
+                Account a = x.search(m.iban);
+                int id_account = id.incrementAndGet();
+                objs.put(id_account, a);
+                ObjRef ref = new ObjRef(addressBank, id_account, "account");
+                return Futures.completedFuture(new BankSearchRep(ref));
+            });
+
+            clique.handler(BankTxnReq.class, (j, m) -> {
+                Account a = (Account) objs.get(m.accountid);
+                boolean res = a.buy(m.price);
+                return Futures.completedFuture(new BankTxnRep(res));
+            });
+
+            clique.open().thenRun(() -> System.out.println("open"));
+
+        }).join();
+
+    }
 
 
     public void initializeCoordinator() {
@@ -189,6 +231,11 @@ public class DistributedObjects {
         else if(o instanceof Cart)
             return new ObjRef(addressStore, id.get(), "cart");
 
+        else if(o instanceof Bank)
+            return new ObjRef(addressBank, id.get(), "bank");
+        else if(o instanceof Account)
+            return new ObjRef(addressBank, id.get(), "account");
+
         return null;
     }
 
@@ -196,6 +243,17 @@ public class DistributedObjects {
 
         if(o.cls.equals("store"))
             return new RemoteStore(tc, t, addressStore);
+
+        if(o.cls.equals("bank")){
+            clique = new Clique(t, Clique.Mode.ANY, 0, addresses);
+
+            tc.execute(() -> {
+                clique.open().thenRun(() -> System.out.println("open"));
+            }).join();
+
+            return new RemoteBank(tc, clique);
+        }
+
         return null;
 
     }

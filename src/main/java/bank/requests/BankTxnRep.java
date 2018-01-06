@@ -1,26 +1,26 @@
-package bookstore.requests;
+package bank.requests;
 
-import utilities.ObjRef;
 import io.atomix.catalyst.buffer.BufferInput;
 import io.atomix.catalyst.buffer.BufferOutput;
 import io.atomix.catalyst.serializer.CatalystSerializable;
 import io.atomix.catalyst.serializer.Serializer;
 
-public class StoreSearchRep implements CatalystSerializable {
-    public ObjRef ref;
+public class BankTxnRep implements CatalystSerializable {
+    public boolean result;
 
-    public StoreSearchRep() {}
-    public StoreSearchRep(ObjRef ref) {
-        this.ref = ref;
+    public BankTxnRep() { }
+
+    public BankTxnRep(boolean result) {
+        this.result = result;
     }
 
     @Override
     public void writeObject(BufferOutput<?> bufferOutput, Serializer serializer) {
-        serializer.writeObject(ref, bufferOutput);
+        bufferOutput.writeBoolean(result);
     }
 
     @Override
     public void readObject(BufferInput<?> bufferInput, Serializer serializer) {
-        ref = serializer.readObject(bufferInput);
+        result = bufferInput.readBoolean();
     }
 }
