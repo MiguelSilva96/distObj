@@ -56,7 +56,7 @@ public class StoreImpl implements Store {
         this.coordId = coordId;
         DistributedObjects distObj = new DistributedObjects();
         distObj.clique = clique;
-        // no address because clique id is hardcoded
+        // no address because clique id is hardcoded, random address
         Address addr = new Address("localhost:12345");
         bank = (RemoteBank) distObj.importObj(new ObjRef(addr, 1, "bank"));
         handlers();
@@ -285,58 +285,5 @@ public class StoreImpl implements Store {
 
     }
 
-    class Invoice implements CatalystSerializable {
-        //list of isbn from the books aquired
-        List<Integer> booksAquired;
-        int txid;
-
-        public Invoice() {}
-        public Invoice(List<Integer> booksAquired, int txid) {
-            this.booksAquired = booksAquired;
-            this.txid = txid;
-        }
-
-        @Override
-        public void writeObject(BufferOutput<?> bufferOutput, Serializer serializer) {
-            int size = booksAquired.size();
-            bufferOutput.writeInt(size);
-            for(Integer i : booksAquired) {
-                bufferOutput.writeInt(i);
-            }
-            bufferOutput.writeInt(txid);
-        }
-
-        @Override
-        public void readObject(BufferInput<?> bufferInput, Serializer serializer) {
-            int size = bufferInput.readInt();
-            for(int i = 0; i < size; i++) {
-                booksAquired.add(bufferInput.readInt());
-            }
-            txid = bufferInput.readInt();
-        }
-    }
-
-    class LockLog implements CatalystSerializable {
-        CompletableFuture<Release> lock;
-        int txid;
-
-        public LockLog() {}
-        public LockLog(CompletableFuture<Release> lock, int txid) {
-            this.lock = lock;
-            this.txid = txid;
-        }
-
-        @Override
-        public void writeObject(BufferOutput<?> bufferOutput, Serializer serializer) {
-            serializer.writeObject(lock, bufferOutput);
-            bufferOutput.writeInt(txid);
-        }
-
-        @Override
-        public void readObject(BufferInput<?> bufferInput, Serializer serializer) {
-            lock = serializer.readObject(bufferInput);
-            txid = bufferInput.readInt();
-        }
-    }
 
 }

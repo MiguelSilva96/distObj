@@ -5,6 +5,9 @@ import io.atomix.catalyst.buffer.BufferOutput;
 import io.atomix.catalyst.serializer.CatalystSerializable;
 import io.atomix.catalyst.serializer.Serializer;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class StartCommit implements CatalystSerializable {
     private TransactInfo transactInfo;
     private int txid;
@@ -12,12 +15,16 @@ public class StartCommit implements CatalystSerializable {
     public StartCommit() {
     }
 
-    public StartCommit(TransactInfo transactInfo) {
+    public StartCommit(TransactInfo transactInfo, int txid) {
         this.transactInfo = transactInfo;
+        this.txid = txid;
     }
 
     public StartCommit(int txid) {
         this.txid = txid;
+        List<Integer> ls = new ArrayList<>();
+        ls.add(1);
+        transactInfo = new TransactInfo(txid, ls);
     }
 
     @Override
@@ -34,6 +41,10 @@ public class StartCommit implements CatalystSerializable {
 
     public TransactInfo getTransactInfo() {
         return transactInfo;
+    }
+
+    public void setTransactInfo(TransactInfo transactInfo) {
+        this.transactInfo = transactInfo;
     }
 
     public int getTxid() {

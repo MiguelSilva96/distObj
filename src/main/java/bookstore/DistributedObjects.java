@@ -2,6 +2,7 @@ package bookstore;
 
 import bank.Account;
 import bank.Bank;
+import bank.BankImpl;
 import bank.RemoteBank;
 import bank.requests.BankSearchRep;
 import bank.requests.BankSearchReq;
@@ -19,12 +20,15 @@ import pt.haslab.ekit.Clique;
 import twopc.Coordinator;
 import twopc.requests.*;
 import bookstore.StoreImpl.CartImpl;
+import bank.BankImpl.AccountImpl;
 import utilities.ObjRef;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class DistributedObjects {
@@ -82,8 +86,8 @@ public class DistributedObjects {
         tc.serializer().register(Vote.class);
         tc.serializer().register(BeginRep.class);
         tc.serializer().register(NewParticipant.class);
-        tc.serializer().register(StoreImpl.Invoice.class);
-        tc.serializer().register(StoreImpl.LockLog.class);
+        tc.serializer().register(Invoice.class);
+        tc.serializer().register(LockLog.class);
     }
 
     public void initialize() {
@@ -122,6 +126,7 @@ public class DistributedObjects {
                         cart.removeCf(m.txid);
                         rep.complete(new CartBuyRep((Boolean) s));
                     });
+                    System.out.println("retornei");
                     return rep;
                 });
                 c.handler(BookInfoReq.class, (m) -> {
@@ -140,7 +145,8 @@ public class DistributedObjects {
         clique = new Clique(t, Clique.Mode.ANY, 1, addresses);
 
         tc.execute(() -> {
-
+            BankImpl bi = (BankImpl) objs.get(1);
+            bi.setConnection(clique, 2);
             clique.handler(BankSearchReq.class, (j, m) -> {
                 Bank x = (Bank) objs.get(m.id);
                 Account a = x.search(m.iban);
@@ -151,12 +157,16 @@ public class DistributedObjects {
             });
 
             clique.handler(BankTxnReq.class, (j, m) -> {
-                Account a = (Account) objs.get(m.accountid);
-                boolean res = a.buy(m.price, m.txid);
-                return Futures.completedFuture(new BankTxnRep(res));
+                AccountImpl a = (AccountImpl) objs.get(m.accountid);
+                a.buy(m.price, m.txid);
+                CompletableFuture<Object> cf = a.getCf(m.txid);
+                CompletableFuture<BankTxnRep> rep = new CompletableFuture<>();
+                cf.thenAccept((s) -> {
+                    a.removeCf(m.txid);
+                    rep.complete(new BankTxnRep((Boolean) s));
+                });
+                return rep;
             });
-
-            clique.open().thenRun(() -> System.out.println("open"));
 
         }).join();
 
@@ -165,6 +175,7 @@ public class DistributedObjects {
 
     public void initializeCoordinator() {
         clique = new Clique(t, Clique.Mode.ANY, 2, addresses);
+
         (new Coordinator(clique, 2, tc)).listen(new Address(":12348"));
     }
 
