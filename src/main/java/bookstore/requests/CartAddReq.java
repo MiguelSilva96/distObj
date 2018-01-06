@@ -11,23 +11,20 @@ public class CartAddReq implements CatalystSerializable {
     public int txid;
 
     public CartAddReq() {}
-    public CartAddReq(int bookid, int cartid, int txid) {
+    public CartAddReq(int bookid, int cartid) {
         this.cartid = cartid;
         this.bookid = bookid;
-        this.txid = txid;
     }
 
     @Override
     public void writeObject(BufferOutput<?> bufferOutput, Serializer serializer) {
         bufferOutput.writeInt(cartid);
         bufferOutput.writeInt(bookid);
-        bufferOutput.writeInt(txid);
     }
 
     @Override
     public void readObject(BufferInput<?> bufferInput, Serializer serializer) {
         cartid = bufferInput.readInt();
         bookid = bufferInput.readInt();
-        txid = bufferInput.readInt();
     }
 }

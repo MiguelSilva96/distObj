@@ -94,47 +94,27 @@ public class DistributedObjects {
             store.setConnection(clique, 1);
             t.server().listen(new Address(":10000"), (c) -> {
                 c.handler(StoreSearchReq.class, (m) -> {
-                    StoreImpl x = (StoreImpl) objs.get(m.id);
-                    Book b = x.search(m.title, m.txid);
-                    final int txid = m.txid;
-                    int id_book = id.incrementAndGet();
-                    objs.put(id_book, b);
-                    ObjRef ref = new ObjRef(addressStore, id_book, "book");
-                    CompletableFuture<Object> cf = x.getCf(m.txid);
-                    CompletableFuture<StoreSearchRep> res = new CompletableFuture<>();
+                    Store x = (Store) objs.get(m.id);
+                    Book b = x.search(m.title);
+                    ObjRef ref = exportObj(b);
                     StoreSearchRep ssr = new StoreSearchRep(ref);
-                    if(cf == null) return Futures.completedFuture(ssr);
-                    cf.thenAccept((s) -> {
-                        x.removeCf(txid);
-                        res.complete(ssr);
-                    });
-                    return res;
+                    return Futures.completedFuture(ssr);
                 });
                 c.handler(StoreMakeCartReq.class, (m) -> {
                     StoreImpl x = (StoreImpl) objs.get(m.id);
-                    Cart cart = x.newCart(m.txid);
-                    int idCart = id.incrementAndGet();
-                    final int txid = m.txid;
-                    objs.put(idCart, cart);
-                    ObjRef ref = new ObjRef(addressStore, idCart, "cart");
-                    CompletableFuture<Object> cf = x.getCf(m.txid);
-                    CompletableFuture<StoreMakeCartRep> res = new CompletableFuture<>();
-                    cf.thenAccept((s) -> {
-                        x.removeCf(txid);
-                        res.complete(new StoreMakeCartRep(ref));
-                    });
-                    return res;
-
+                    Cart cart = x.newCart();
+                    ObjRef ref = exportObj(cart);
+                    return Futures.completedFuture(new StoreMakeCartRep(ref));
                 });
                 c.handler(CartAddReq.class, (m) -> {
                     Cart cart = (Cart) objs.get(m.cartid);
                     Book book = (Book) objs.get(m.bookid);
-                    cart.add(book, m.txid);
+                    cart.add(book);
                     return Futures.completedFuture(new CartAddRep());
                 });
                 c.handler(CartBuyReq.class, (m) -> {
                     CartImpl cart = (CartImpl) objs.get(m.cartid);
-                    cart.buy(m.txid);
+                    cart.buy(m.txid, m.iban);
                     CompletableFuture<Object> cf = cart.getCf(m.txid);
                     CompletableFuture<CartBuyRep> rep = new CompletableFuture<>();
                     cf.thenAccept((s) -> {

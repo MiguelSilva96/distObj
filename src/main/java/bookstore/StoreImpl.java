@@ -25,7 +25,7 @@ public class StoreImpl implements Store {
     private Clique clique;
     private int coordId;
     private TwoPl twoPl;
-    // only to guarantee we only reply to client when coord responds
+    // helps to know when locks are aquired and the action is complete
     private Map<Integer, CompletableFuture<Object>> completablesForResp;
 
     public StoreImpl() {
@@ -97,47 +97,20 @@ public class StoreImpl implements Store {
         return books.get(isbn).book;
     }
 
-    public CompletableFuture<Object> getCf(int txid) {
-        CompletableFuture<Object> res = completablesForResp.get(txid);
-        return res;
-    }
-
-    public void removeCf(int txid) {
-        completablesForResp.remove(txid);
-    }
-
-
-    public Book search(String title, int txid) {
-        Transaction t = currentTransactions.get(txid);
-        CompletableFuture<Object> cf = new CompletableFuture<>();
-        if(t == null) {
-            t = new Transaction(txid);
-            currentTransactions.put(txid, t);
-            completablesForResp.put(txid, cf);
-            clique.sendAndReceive(coordId, new NewParticipant(txid))
-                    .thenAccept(s -> {cf.complete(s);});
-        }
+    public Book search(String title) {
         for(Stock b: books.values())
             if (b.book.getTitle().equals(title))
                 return b.book;
         return null;
     }
 
-    public Cart newCart(int txid) {
-        Transaction t = currentTransactions.get(txid);
-        CompletableFuture<Object> cf = new CompletableFuture<>();
-        if(t == null) {
-            t = new Transaction(txid);
-            currentTransactions.put(txid, t);
-            completablesForResp.put(txid, cf);
-            clique.sendAndReceive(coordId, new NewParticipant(txid))
-                    .thenAccept(s -> {cf.complete(s);});
-        }
+    public Cart newCart() {
         return new CartImpl();
     }
 
     public class CartImpl implements Cart {
         private List<Book> content;
+        // to know buy result
         private Map<Integer, Boolean> doing;
 
         public CartImpl() {
@@ -145,7 +118,7 @@ public class StoreImpl implements Store {
             doing = new HashMap<>();
         }
 
-        public void add(Book b, int txid) {
+        public void add(Book b) {
             content.add(b);
         }
 
@@ -191,7 +164,7 @@ public class StoreImpl implements Store {
             completablesForResp.remove(txid);
         }
 
-        public boolean buy(int txid) {
+        public boolean buy(int txid, String iban) {
             Transaction t = currentTransactions.get(txid);
             CompletableFuture<Object> cf = new CompletableFuture<>();
             completablesForResp.put(txid, cf);
@@ -231,7 +204,6 @@ public class StoreImpl implements Store {
             beforeCommit = new ArrayList<>();
             this.txid = txid;
         }
-
     }
 
     class Invoice {

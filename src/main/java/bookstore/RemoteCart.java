@@ -33,11 +33,11 @@ public class RemoteCart implements Cart {
         this.id = id;
     }
 
-    public boolean buy(int txid) {
+    public boolean buy(int txid, String iban) {
         CartBuyRep r = null;
         try{
             r = (CartBuyRep) tc.execute(()->
-                    c.sendAndReceive(new CartBuyReq(id, txid))
+                    c.sendAndReceive(new CartBuyReq(id, txid, iban))
             ).join().get();
         }catch (InterruptedException|ExecutionException e){
             e.printStackTrace();
@@ -45,11 +45,11 @@ public class RemoteCart implements Cart {
         return r.result;
     }
 
-    public void add(Book b, int txid) {
+    public void add(Book b) {
         RemoteBook book = (RemoteBook) b;
         try {
             CartAddRep r = (CartAddRep) tc.execute(() ->
-                    c.sendAndReceive(new CartAddReq(book.id, id, txid))
+                    c.sendAndReceive(new CartAddReq(book.id, id))
             ).join().get();
         } catch (InterruptedException|ExecutionException e) {
             e.printStackTrace();

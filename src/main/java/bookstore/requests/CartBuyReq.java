@@ -8,12 +8,14 @@ import io.atomix.catalyst.serializer.Serializer;
 public class CartBuyReq implements CatalystSerializable{
     public int cartid;
     public int txid;
+    public String iban;
 
     public CartBuyReq() { }
 
-    public CartBuyReq(int cartid, int txid) {
+    public CartBuyReq(int cartid, int txid, String iban) {
         this.cartid = cartid;
         this.txid = txid;
+        this.iban = iban;
     }
 
 
@@ -21,11 +23,13 @@ public class CartBuyReq implements CatalystSerializable{
     public void writeObject(BufferOutput<?> bufferOutput, Serializer serializer) {
         bufferOutput.writeInt(cartid);
         bufferOutput.writeInt(txid);
+        bufferOutput.writeString(iban);
     }
 
     @Override
     public void readObject(BufferInput<?> bufferInput, Serializer serializer) {
         cartid = bufferInput.readInt();
         txid = bufferInput.readInt();
+        iban = bufferInput.readString();
     }
 }
