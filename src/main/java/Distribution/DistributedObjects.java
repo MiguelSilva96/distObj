@@ -1,4 +1,4 @@
-package bookstore;
+package Distribution;
 
 import bank.Account;
 import bank.Bank;
@@ -8,6 +8,7 @@ import bank.requests.BankSearchRep;
 import bank.requests.BankSearchReq;
 import bank.requests.BankTxnRep;
 import bank.requests.BankTxnReq;
+import bookstore.*;
 import io.atomix.catalyst.concurrent.Futures;
 import io.atomix.catalyst.concurrent.SingleThreadContext;
 import io.atomix.catalyst.serializer.Serializer;
@@ -22,24 +23,24 @@ import twopc.requests.*;
 import bookstore.StoreImpl.CartImpl;
 import bank.BankImpl.AccountImpl;
 import utilities.ObjRef;
+import utilities.OrderIn;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class DistributedObjects {
 
-    Map<Integer, Object> objs;
+    Map<Integer, OrderIn> objs;
     AtomicInteger id;
     SingleThreadContext tc;
     Transport t;
     Address addressStore, addressCoord, addressBank;
     Address[] addresses;
-    Clique clique;
+    public Clique clique;
 
     public DistributedObjects() {
         objs = new HashMap<>();
@@ -69,6 +70,7 @@ public class DistributedObjects {
         tc.serializer().register(StoreMakeCartRep.class);
         tc.serializer().register(BookInfoReq.class);
         tc.serializer().register(BookInfoRep.class);
+        tc.serializer().register(GetsBookAndInfoReq.class);
 
         tc.serializer().register(BankSearchReq.class);
         tc.serializer().register(BankSearchRep.class);
@@ -91,34 +93,44 @@ public class DistributedObjects {
     }
 
     public void initialize() {
-
+        new MonitorObjs(objs).start();
         clique = new Clique(t, Clique.Mode.ANY, 0, addresses);
 
         tc.execute(() -> {
-            StoreImpl store = (StoreImpl) objs.get(1);
+            StoreImpl store = (StoreImpl) objs.get(1).obj;
             store.setConnection(clique, 2);
             t.server().listen(new Address(":10000"), (c) -> {
                 c.handler(StoreSearchReq.class, (m) -> {
-                    Store x = (Store) objs.get(m.id);
+                    OrderIn oI = objs.get(m.id);
+                    oI.updateTimestamp(System.currentTimeMillis());
+                    Store x = (Store) oI.obj;
                     Book b = x.search(m.title);
                     ObjRef ref = exportObj(b);
                     StoreSearchRep ssr = new StoreSearchRep(ref);
                     return Futures.completedFuture(ssr);
                 });
                 c.handler(StoreMakeCartReq.class, (m) -> {
-                    StoreImpl x = (StoreImpl) objs.get(m.id);
+                    OrderIn oI = objs.get(m.id);
+                    oI.updateTimestamp(System.currentTimeMillis());
+                    StoreImpl x = (StoreImpl) oI.obj;
                     Cart cart = x.newCart();
                     ObjRef ref = exportObj(cart);
                     return Futures.completedFuture(new StoreMakeCartRep(ref));
                 });
                 c.handler(CartAddReq.class, (m) -> {
-                    Cart cart = (Cart) objs.get(m.cartid);
-                    Book book = (Book) objs.get(m.bookid);
+                    OrderIn oICart = objs.get(m.cartid);
+                    oICart.updateTimestamp(System.currentTimeMillis());
+                    OrderIn oIBook = objs.get(m.bookid);
+                    oIBook.updateTimestamp(System.currentTimeMillis());
+                    Cart cart = (Cart) oICart.obj;
+                    Book book = (Book) oIBook.obj;
                     cart.add(book);
                     return Futures.completedFuture(new CartAddRep());
                 });
                 c.handler(CartBuyReq.class, (m) -> {
-                    CartImpl cart = (CartImpl) objs.get(m.cartid);
+                    OrderIn oI = objs.get(m.cartid);
+                    oI.updateTimestamp(System.currentTimeMillis());
+                    CartImpl cart = (CartImpl) oI.obj;
                     cart.buy(m.txid, m.iban);
                     CompletableFuture<Object> cf = cart.getCf(m.txid);
                     CompletableFuture<CartBuyRep> rep = new CompletableFuture<>();
@@ -130,11 +142,35 @@ public class DistributedObjects {
                     return rep;
                 });
                 c.handler(BookInfoReq.class, (m) -> {
-                    Book book = (Book) objs.get(m.bookid);
-                    int isbn = book.getIsbn();
-                    String title = book.getTitle();
-                    String author = book.getAuthor();
-                    BookInfoRep rep = new BookInfoRep(isbn, title, author);
+                    OrderIn oI = objs.get(m.bookid);
+                    oI.updateTimestamp(System.currentTimeMillis());
+                    Book book = (Book) oI.obj;
+                    BookInfoRep rep = null;
+                    if(m.infoReq == 0) {
+                        rep = new BookInfoRep(book.getIsbn());
+                    }else if(m.infoReq == 1){
+                        rep = new BookInfoRep(book.getTitle());
+                    }else if(m.infoReq == 2){
+                        rep = new BookInfoRep(book.getAuthor());
+                    }
+                    return Futures.completedFuture(rep);
+                });
+                c.handler(GetsBookAndInfoReq.class, (m) -> {
+                    OrderIn oI = objs.get(m.storeId);
+                    oI.updateTimestamp(System.currentTimeMillis());
+                    Store x = (Store) oI.obj;
+                    Book b = x.search(m.title);
+                    int bookId = id.incrementAndGet();
+                    objs.put(bookId, new OrderIn(b,System.currentTimeMillis()));
+                    BookInfoRep rep = null;
+                    if(m.infoReq == 0) {
+                        rep = new BookInfoRep(b.getIsbn());
+                    }else if(m.infoReq == 1){
+                        rep = new BookInfoRep(b.getTitle());
+                    }else if(m.infoReq == 2){
+                        rep = new BookInfoRep(b.getAuthor());
+                    }
+                    System.out.println("hello");
                     return Futures.completedFuture(rep);
                 });
             });
@@ -145,19 +181,20 @@ public class DistributedObjects {
         clique = new Clique(t, Clique.Mode.ANY, 1, addresses);
 
         tc.execute(() -> {
-            BankImpl bi = (BankImpl) objs.get(1);
+            BankImpl bi = (BankImpl) objs.get(1).obj;
             bi.setConnection(clique, 2);
             clique.handler(BankSearchReq.class, (j, m) -> {
-                Bank x = (Bank) objs.get(m.id);
+                Bank x = (Bank) objs.get(m.id).obj;
                 Account a = x.search(m.iban);
-                int id_account = id.incrementAndGet();
-                objs.put(id_account, a);
-                ObjRef ref = new ObjRef(addressBank, id_account, "account");
+                ObjRef ref = exportObj(a);
                 return Futures.completedFuture(new BankSearchRep(ref));
             });
 
             clique.handler(BankTxnReq.class, (j, m) -> {
-                AccountImpl a = (AccountImpl) objs.get(m.accountid);
+                OrderIn oIAccount = objs.get(m.accountid);
+                oIAccount.updateTimestamp(System.currentTimeMillis());
+                AccountImpl a = (AccountImpl) oIAccount.obj;
+                //AccountImpl a = (AccountImpl) objs.get(m.accountid);
                 a.buy(m.price, m.txid);
                 CompletableFuture<Object> cf = a.getCf(m.txid);
                 CompletableFuture<BankTxnRep> rep = new CompletableFuture<>();
@@ -214,7 +251,7 @@ public class DistributedObjects {
 
     public ObjRef exportObj(Object o){
 
-        objs.put(id.incrementAndGet(), o);
+        objs.put(id.incrementAndGet(), new OrderIn(o, System.currentTimeMillis()));
 
         if(o instanceof Store)
             return new ObjRef(addressStore, id.get(), "store");
@@ -244,3 +281,44 @@ public class DistributedObjects {
 
     }
 }
+
+class MonitorObjs extends Thread {
+
+    private Map<Integer, OrderIn> objs;
+
+    private Iterator<Map.Entry<Integer, OrderIn>> it;
+    private Map.Entry<Integer, OrderIn> entry;
+
+    public MonitorObjs (Map<Integer, OrderIn> objs){
+        this.objs = objs;
+    }
+
+    @Override
+    public void run(){
+        while (true){
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            it = objs.entrySet().iterator();
+
+            while (it.hasNext()) {
+                entry = it.next();
+                long diffTime = Long.MAX_VALUE;
+
+                if(entry.getValue().obj instanceof Book)
+                    diffTime = 3600000 ;
+                else if(entry.getValue().obj instanceof Cart)
+                    diffTime = 3600000;
+
+                if(System.currentTimeMillis() - entry.getValue().timeIn >= diffTime){
+                    System.out.println(objs.values().toString());
+                    it.remove();
+                }
+            }
+        }
+    }
+}
+

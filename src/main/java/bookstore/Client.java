@@ -1,5 +1,6 @@
 package bookstore;
 
+import Distribution.DistributedObjects;
 import io.atomix.catalyst.transport.Address;
 import utilities.ObjRef;
 

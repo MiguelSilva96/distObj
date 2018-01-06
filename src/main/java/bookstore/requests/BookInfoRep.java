@@ -7,27 +7,35 @@ import io.atomix.catalyst.serializer.Serializer;
 
 public class BookInfoRep implements CatalystSerializable {
     public int isbn;
-    public String title;
-    public String author;
+    public String titAuth;
 
     public BookInfoRep() {}
-    public BookInfoRep(int isbn, String title, String author) {
+
+    public BookInfoRep(int isbn, String titAuth) {
         this.isbn = isbn;
-        this.title = title;
-        this.author = author;
+        this.titAuth = titAuth;
+    }
+
+    public BookInfoRep(int isbn){
+        this.isbn = isbn;
+    }
+
+    public BookInfoRep(String titAuth){
+        this.titAuth = titAuth;
+
     }
 
     @Override
     public void writeObject(BufferOutput<?> bufferOutput, Serializer serializer) {
         bufferOutput.writeInt(isbn);
-        bufferOutput.writeString(title);
-        bufferOutput.writeString(author);
+        bufferOutput.writeString(titAuth);
     }
 
     @Override
     public void readObject(BufferInput<?> bufferInput, Serializer serializer) {
         isbn = bufferInput.readInt();
-        title = bufferInput.readString();
-        author = bufferInput.readString();
+        titAuth = bufferInput.readString();
+
     }
 }
+

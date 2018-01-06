@@ -8,7 +8,7 @@ import pt.haslab.ekit.Clique;
 
 
 public class Util {
-    public static Object makeRemote(SingleThreadContext tc, ObjRef res, Clique clique) {
+    public static Object makeRemote(SingleThreadContext tc, ObjRef res, Clique clique, String title, int storeID) {
         String clas = res.cls;
         Object ret = null;
         switch (clas) {
@@ -16,7 +16,7 @@ public class Util {
                 ret = new RemoteCart(tc, res.address, res.id);
                 break;
             case "book":
-                ret = new RemoteBook(tc, res.address, res.id);
+                ret = new RemoteBook(tc, res.address, res.id, System.currentTimeMillis(), storeID, title);
                 break;
             case "account":
                 ret = new RemoteAccount(tc, clique, res.id);

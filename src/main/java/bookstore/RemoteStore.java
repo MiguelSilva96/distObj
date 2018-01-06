@@ -43,7 +43,7 @@ public class RemoteStore implements Store {
         } catch (InterruptedException|ExecutionException e) {
             e.printStackTrace();
         }
-        return (Book) Util.makeRemote(tc, r.ref, null);
+        return (Book) Util.makeRemote(tc, r.ref, null, title, id);
     }
 
     public Cart newCart() {
@@ -56,7 +56,7 @@ public class RemoteStore implements Store {
             e.printStackTrace();
         }
         if(r == null) return null;
-        return (Cart) Util.makeRemote(tc, r.ref, null);
+        return (Cart) Util.makeRemote(tc, r.ref, null, null, id);
     }
 
 }

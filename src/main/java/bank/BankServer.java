@@ -1,6 +1,6 @@
 package bank;
 
-import bookstore.DistributedObjects;
+import Distribution.DistributedObjects;
 
 public class BankServer {
     public static void main(String[] args) throws Exception {

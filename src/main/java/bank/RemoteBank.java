@@ -32,7 +32,7 @@ public class RemoteBank implements Bank {
                 .thenAccept(s -> {
                     rep.complete((BankSearchRep)s);
                     RemoteAccount acc = (RemoteAccount) Util.makeRemote(tc,
-                                        ((BankSearchRep) s).ref, clique);
+                                        ((BankSearchRep) s).ref, clique, null, -1);
                     search.complete(acc);
                 });
         return null;

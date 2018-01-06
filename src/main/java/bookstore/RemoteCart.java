@@ -49,7 +49,7 @@ public class RemoteCart implements Cart {
         RemoteBook book = (RemoteBook) b;
         try {
             CartAddRep r = (CartAddRep) tc.execute(() ->
-                    c.sendAndReceive(new CartAddReq(book.id, id))
+                    c.sendAndReceive(new CartAddReq(book.getId(), id))
             ).join().get();
         } catch (InterruptedException|ExecutionException e) {
             e.printStackTrace();
