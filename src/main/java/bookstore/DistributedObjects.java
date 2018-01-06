@@ -43,14 +43,13 @@ public class DistributedObjects {
         tc = new SingleThreadContext("srv-%d", new Serializer());
         t  = new NettyTransport();
         addressStore = new Address("localhost:10000");
-        addressBank  = new Address("localhost:20000");
         addressCoord = new Address("localhost:12348");
-
 
         //addresses for clique
         addresses = new Address[] {
-                new Address("localhost:11111"), //store
-                new Address("localhost:22222") //coord
+                new Address("localhost:11111"),//store
+                new Address("localhost:22222"),//bank
+                new Address("localhost:33333") //coord
         };
         register();
     }
@@ -83,6 +82,8 @@ public class DistributedObjects {
         tc.serializer().register(Vote.class);
         tc.serializer().register(BeginRep.class);
         tc.serializer().register(NewParticipant.class);
+        tc.serializer().register(StoreImpl.Invoice.class);
+        tc.serializer().register(StoreImpl.LockLog.class);
     }
 
     public void initialize() {
@@ -91,7 +92,7 @@ public class DistributedObjects {
 
         tc.execute(() -> {
             StoreImpl store = (StoreImpl) objs.get(1);
-            store.setConnection(clique, 1);
+            store.setConnection(clique, 2);
             t.server().listen(new Address(":10000"), (c) -> {
                 c.handler(StoreSearchReq.class, (m) -> {
                     Store x = (Store) objs.get(m.id);
@@ -151,7 +152,7 @@ public class DistributedObjects {
 
             clique.handler(BankTxnReq.class, (j, m) -> {
                 Account a = (Account) objs.get(m.accountid);
-                boolean res = a.buy(m.price);
+                boolean res = a.buy(m.price, m.txid);
                 return Futures.completedFuture(new BankTxnRep(res));
             });
 
@@ -163,8 +164,8 @@ public class DistributedObjects {
 
 
     public void initializeCoordinator() {
-        clique = new Clique(t, Clique.Mode.ANY, 1, addresses);
-        (new Coordinator(clique, 1, tc)).listen(new Address(":12348"));
+        clique = new Clique(t, Clique.Mode.ANY, 2, addresses);
+        (new Coordinator(clique, 2, tc)).listen(new Address(":12348"));
     }
 
     public int beginTransaction() {
@@ -225,12 +226,6 @@ public class DistributedObjects {
             return new RemoteStore(tc, t, addressStore);
 
         if(o.cls.equals("bank")){
-            clique = new Clique(t, Clique.Mode.ANY, 0, addresses);
-
-            tc.execute(() -> {
-                clique.open().thenRun(() -> System.out.println("open"));
-            }).join();
-
             return new RemoteBank(tc, clique);
         }
 

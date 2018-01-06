@@ -44,6 +44,7 @@ public class TransactInfo implements CatalystSerializable {
         bufferOutput.writeInt(participants.size());
         for(Integer i : participants)
             bufferOutput.writeInt(i);
+        serializer.writeObject(completedCommit, bufferOutput);
     }
 
     @Override
@@ -53,5 +54,6 @@ public class TransactInfo implements CatalystSerializable {
         participants = new ArrayList<>();
         for(int i = 0; i < size; i++)
             participants.add(bufferInput.readInt());
+        completedCommit = serializer.readObject(bufferInput);
     }
 }

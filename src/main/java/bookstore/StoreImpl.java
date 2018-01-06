@@ -2,7 +2,16 @@ package bookstore;
 
 
 
+import bank.Account;
+import bank.Bank;
+import bank.RemoteAccount;
+import bank.RemoteBank;
+import io.atomix.catalyst.buffer.BufferInput;
+import io.atomix.catalyst.buffer.BufferOutput;
 import io.atomix.catalyst.concurrent.Futures;
+import io.atomix.catalyst.serializer.CatalystSerializable;
+import io.atomix.catalyst.serializer.Serializer;
+import io.atomix.catalyst.transport.Address;
 import pt.haslab.ekit.Clique;
 import pt.haslab.ekit.Log;
 import twopc.Participant;
@@ -10,6 +19,7 @@ import twopc.requests.*;
 import twopl.Acquired;
 import twopl.Release;
 import twopl.TwoPl;
+import utilities.ObjRef;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -25,6 +35,7 @@ public class StoreImpl implements Store {
     private Clique clique;
     private int coordId;
     private TwoPl twoPl;
+    private RemoteBank bank;
     // helps to know when locks are aquired and the action is complete
     private Map<Integer, CompletableFuture<Object>> completablesForResp;
 
@@ -43,51 +54,74 @@ public class StoreImpl implements Store {
     public void setConnection(Clique clique, int coordId) {
         this.clique = clique;
         this.coordId = coordId;
+        DistributedObjects distObj = new DistributedObjects();
+        distObj.clique = clique;
+        // no address because clique id is hardcoded
+        Address addr = new Address("localhost:12345");
+        bank = (RemoteBank) distObj.importObj(new ObjRef(addr, 1, "bank"));
         handlers();
     }
 
     private void handlers() {
-        log.handler(Prepare.class, (i, p) -> {
-
+        log.handler(NewParticipant.class, (i, p) -> {
+            Transaction t = new Transaction(p.getTxid());
+            currentTransactions.put(p.getTxid(), t);
+        });
+        log.handler(LockLog.class, (i, l) -> {
+            Transaction t = new Transaction(l.txid);
+            t.locks.add(l.lock);
         });
         log.handler(Commit.class, (i, com) -> {
-            // nothing to do here
+            Transaction t = currentTransactions.get(com.getTxid());
+            for(Invoice inv : t.beforeCommit) {
+                history.add(inv);
+                for(Integer b : inv.booksAquired) {
+                    books.get(b).nBooks--;
+                }
+            }
         });
-        log.handler(String.class, (i, vot) -> {
-            //means that has voted
-            //wait for coord
+        log.handler(Invoice.class, (i, inv) -> {
+            Transaction t = currentTransactions.get(inv.txid);
+            t.beforeCommit.add(inv);
+        });
+        log.handler(Vote.class, (i, vot) -> {
+            Transaction t = currentTransactions.get(vot.getTxid());
+            t.voted = true;
         });
         log.open().thenRun(() -> {
-            //do we need then run??
+            for(Transaction t : currentTransactions.values()) {
+                if(t.voted);
+                else
+                    clique.send(coordId, new Vote("ABORT", t.txid));
+            }
         });
         clique.handler(Prepare.class, (j, m) -> {
             log.append(m);
             int txid = m.getTransactInfo().getTxid();
-            System.out.println("received prepare");
+            Transaction t = currentTransactions.get(txid);
             clique.send(j, new Vote("COMMIT", txid));
-            currentTransactions.get(txid).voted = true;
-            log.append("Voted");
+            t.voted = true;
+            log.append(new Vote("COMMIT", txid));
         });
 
         clique.handler(Commit.class, (j, m) -> {
             log.append(m);
             Transaction t = currentTransactions.get(m.getTxid());
-            // free locks
+            for(CompletableFuture<Release> cfr : t.locks)
+                cfr.complete(new Release());
             System.out.print("Commit");
         });
 
         clique.handler(Rollback.class, (j, m) -> {
             Transaction t = currentTransactions.get(m.getTxid());
-            for(Object o : t.beforeCommit) {
-                if(o instanceof Stock) {
-                    Stock s = (Stock) o;
-                    books.remove(s.book.getIsbn());
-                    books.put(s.book.getIsbn(), s);
-                } else if(o instanceof Invoice) {
-                    history.remove(o);
+            for(Invoice inv : t.beforeCommit) {
+                for (Integer in : inv.booksAquired) {
+                    books.get(in).nBooks++;
+                    history.remove(inv);
                 }
             }
-            // free locks
+            for(CompletableFuture<Release> cfr : t.locks)
+                cfr.complete(new Release());
             System.out.println("Rollback");
         });
         clique.open().thenRun(() -> System.out.println("open"));
@@ -122,6 +156,25 @@ public class StoreImpl implements Store {
             content.add(b);
         }
 
+        private CompletableFuture<Boolean> sendToBank(String iban, int txid) {
+            CompletableFuture<Boolean> result = new CompletableFuture<>();
+            // this needs to be better
+            // guarantee the inner cf isnt changed
+            RemoteBank b = bank.clone();
+            b.search = new CompletableFuture<>();
+            b.search(iban);
+            b.search.thenCompose((r) -> {
+                if(r == null)
+                    result.complete(false);
+                r.buy = new CompletableFuture<>();
+                r.buy(100, txid);
+                return r.buy;
+            }).thenAccept((r) -> {
+                result.complete(r);
+            });
+            return result;
+        }
+
         private CompletableFuture<?> treatBook(int txid, int c) {
             int i = -1;
             Stock st;
@@ -132,27 +185,50 @@ public class StoreImpl implements Store {
                 i++;
                 if (i == c) {
                     st = books.get(b.getIsbn());
+                    if (i == 0) log.append(new NewParticipant(txid));
                     if (i > 0)
                         if (books.get(anterior.getIsbn()).nBooks == 0) {
                             doing.put(txid, false);
                         }
-                    return twoPl.lock(st);
+                    CompletableFuture<Acquired> a = twoPl.lock(st);
+                    a.thenAccept((aq) -> {
+                        CompletableFuture<Release> rl = aq.getReleaseLock();
+                        currentTransactions.get(txid).locks.add(rl);
+                        log.append(new LockLog(rl, txid));
+                    });
+                    return a;
                 }
                 anterior = b;
             }
             return res;
         }
 
-        private void auxBuy(CompletableFuture<?> res, int txid, int c) {
+        private void auxBuy(CompletableFuture<?> res, int txid, int c, String iban) {
+            //means all books have been checked
             if(c == content.size()) {
                 boolean r = true;
                 if(doing.get(txid) != null) {
                     r = false; doing.remove(txid);
                 }
-                completablesForResp.get(txid).complete(r);
+                final boolean rr = r;
+                sendToBank(iban, txid).thenAccept((rb -> {
+                    List<Integer> bs = new ArrayList<>();
+                    if(rr && rb) {
+                        for(Book b : content) {
+                            bs.add(b.getIsbn());
+                            // at this point all locks are acquired
+                            books.get(b.getIsbn()).nBooks--;
+                        }
+                        Invoice inv = new Invoice(bs, txid);
+                        currentTransactions.get(txid).beforeCommit.add(inv);
+                        history.add(inv);
+                        log.append(inv);
+                    }
+                    completablesForResp.get(txid).complete(rr && rb);
+                }));
                 return;
             }
-            auxBuy(res.thenCompose((s) -> treatBook(txid, c)), txid, c + 1);
+            auxBuy(res.thenCompose((s) -> treatBook(txid, c)), txid, c + 1, iban);
         }
 
         public CompletableFuture<Object> getCf(int txid) {
@@ -173,7 +249,7 @@ public class StoreImpl implements Store {
                 currentTransactions.put(txid, t);
             }
             auxBuy(clique.sendAndReceive(coordId, new NewParticipant(txid)),
-                    txid, 0);
+                    txid, 0, iban);
             //this return does not matter
             return false;
         }
@@ -195,18 +271,72 @@ public class StoreImpl implements Store {
     }
 
     class Transaction {
-        List<Object> beforeCommit;
+        List<Invoice> beforeCommit;
         boolean voted;
         int txid;
         List<CompletableFuture<Release>> locks;
 
         public Transaction(int txid) {
             beforeCommit = new ArrayList<>();
+            locks = new ArrayList<>();
+            voted = false;
             this.txid = txid;
+        }
+
+    }
+
+    class Invoice implements CatalystSerializable {
+        //list of isbn from the books aquired
+        List<Integer> booksAquired;
+        int txid;
+
+        public Invoice() {}
+        public Invoice(List<Integer> booksAquired, int txid) {
+            this.booksAquired = booksAquired;
+            this.txid = txid;
+        }
+
+        @Override
+        public void writeObject(BufferOutput<?> bufferOutput, Serializer serializer) {
+            int size = booksAquired.size();
+            bufferOutput.writeInt(size);
+            for(Integer i : booksAquired) {
+                bufferOutput.writeInt(i);
+            }
+            bufferOutput.writeInt(txid);
+        }
+
+        @Override
+        public void readObject(BufferInput<?> bufferInput, Serializer serializer) {
+            int size = bufferInput.readInt();
+            for(int i = 0; i < size; i++) {
+                booksAquired.add(bufferInput.readInt());
+            }
+            txid = bufferInput.readInt();
         }
     }
 
-    class Invoice {
-        List<Book> booksAquired;
+    class LockLog implements CatalystSerializable {
+        CompletableFuture<Release> lock;
+        int txid;
+
+        public LockLog() {}
+        public LockLog(CompletableFuture<Release> lock, int txid) {
+            this.lock = lock;
+            this.txid = txid;
+        }
+
+        @Override
+        public void writeObject(BufferOutput<?> bufferOutput, Serializer serializer) {
+            serializer.writeObject(lock, bufferOutput);
+            bufferOutput.writeInt(txid);
+        }
+
+        @Override
+        public void readObject(BufferInput<?> bufferInput, Serializer serializer) {
+            lock = serializer.readObject(bufferInput);
+            txid = bufferInput.readInt();
+        }
     }
+
 }

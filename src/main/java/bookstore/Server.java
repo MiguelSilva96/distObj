@@ -14,7 +14,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class Server {
     public static void main(String[] args) throws Exception {
-
         DistributedObjects distObj = new DistributedObjects();
         StoreImpl store = new StoreImpl();
         distObj.exportObj(store);
