@@ -14,19 +14,19 @@ public class LockLog implements CatalystSerializable {
 
         public LockLog() {}
         public LockLog(CompletableFuture<Release> lock, int txid) {
-            this.lock = lock;
+            //this.lock = lock;
             this.txid = txid;
         }
 
         @Override
         public void writeObject(BufferOutput<?> bufferOutput, Serializer serializer) {
-            serializer.writeObject(lock, bufferOutput);
+            //serializer.writeObject(lock, bufferOutput);
             bufferOutput.writeInt(txid);
         }
 
         @Override
         public void readObject(BufferInput<?> bufferInput, Serializer serializer) {
-            lock = serializer.readObject(bufferInput);
+            //lock = serializer.readObject(bufferInput);
             txid = bufferInput.readInt();
         }
     }

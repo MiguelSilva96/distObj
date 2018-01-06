@@ -58,8 +58,8 @@ public class Coordinator {
                     List<Integer> part = tr.getParticipants();
                     TransactInfo tinf = new TransactInfo(m.getTxid(), part);
                     tinf.setCompletedCommit(compFuture);
-                    m.setTransactInfo(tinf);;
-                    //log.append(m);
+                    StartCommit scLog = new StartCommit(tinf, m.getTxid());
+                    log.append(scLog);
                     return compFuture;
                 });
             });
@@ -81,7 +81,7 @@ public class Coordinator {
                 TransactInfo tinfo = sc.getTransactInfo();
                 Transaction t = transactions.get(tinfo.getTxid());
                 t.setParticipants(tinfo.getParticipants());
-                t.setCompletedCommit(tinfo.getCompletedCommit());
+                //t.setCompletedCommit(tinfo.getCompletedCommit());
             });
             log.handler(Commit.class, (i, c) -> {
                 // take info this can be trimmed from log

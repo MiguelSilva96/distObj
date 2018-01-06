@@ -69,7 +69,7 @@ public class StoreImpl implements Store {
         });
         log.handler(LockLog.class, (i, l) -> {
             Transaction t = new Transaction(l.txid);
-            t.locks.add(l.lock);
+            //t.locks.add(l.lock);
         });
         log.handler(Commit.class, (i, com) -> {
             Transaction t = currentTransactions.get(com.getTxid());
