@@ -1,2 +1,3 @@
 # distObj
-Distributed Objects implementation using atomix catalyst + ekit haslab.
+Distributed Objects implementation of a BookStore and a Bank, using atomix catalyst + ekit haslab.
+
